@@ -174,7 +174,13 @@ void setup() {
 
   LoRa.setPins(csPin, resetPin, irqPin); // set CS, reset, IRQ pin
 
-  LoRa.begin(868E6);  //set Frequenz
+  LoRa.setTxPower(17);  //2-20 default 17
+  LoRa.setSpreadingFactor(7);    //6-12 default 7
+  LoRa.setSignalBandwidth(125E3);   //7.8E3, 10.4E3, 15.6E3, 20.8E3, 31.25E3, 41.7E3, 62.5E3, 125E3, 250E3, and 500E3 default 125E3
+  LoRa.setCodingRate4(5);   //5-8 default 5
+  LoRa.setPreambleLength(8);    //6-65535 default 8
+
+  LoRa.begin(868E6);  //set Frequenz 915E6 or 868E6
 
   if (!LoRa.begin(868E6)) {
     Serial.println("Starting LoRa failed");
