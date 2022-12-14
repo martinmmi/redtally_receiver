@@ -28,9 +28,10 @@ char buf_rm[12];
 bool clkState;
 bool last_clkState;
 bool initSuccess = LOW;
+bool initSuccess2 = LOW;
 
 byte msgCount = 0;            // count of outgoing messages
-byte localAddress = 0xcc;     // address of this device                                           //TALLYXXXXXXXXXX
+byte localAddress = 0xbb;     // address of this device                                           //TALLYXXXXXXXXXX
 byte destination = 0xaa;      // destination to send to
 long lastOfferTime = 0;       // last send time
 long lastClockTime = 0;
@@ -254,7 +255,7 @@ void loop() {
     tallyBlinkFast(yellow);
     if (millis() - lastOfferTime > random(1000) + 2000) {     //Between 2 and 3 Secounds Wait with Offer
       digitalWrite(LED_PIN_INTERNAL, HIGH);
-      String message = "off-tally2";           //Send a message                                                   //TALLYXXXXXXXXXX
+      String message = "off-tally1";           //Send a message                                                   //TALLYXXXXXXXXXX
       sendMessage(message);
       printDisplay("", message);
       Serial.println("TxD: " + message);
@@ -293,8 +294,9 @@ void loop() {
       initSuccess = HIGH;
     }
 
-    if (millis() - lastInitSuccess > 6000) {
+    if ((initSuccess2 == LOW) && (millis() - lastInitSuccess > 2000)) {
       tally(nocolor);
+      initSuccess2 = HIGH;
     }
 
   }
