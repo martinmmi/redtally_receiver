@@ -25,16 +25,17 @@ String mode;
 char buf_sm[12];
 char buf_rm[12];
 
-bool clk_state;
-bool last_clk_state;
+bool clkState;
+bool last_clkState;
+bool initSuccess = LOW;
 
 byte msgCount = 0;            // count of outgoing messages
-byte localAddress = 0xBB;     // address of this device
-byte destination = 0xAA;      // destination to send to
-long lastDiscoverTime = 0;    // last send time
+byte localAddress = 0xcc;     // address of this device                                           //TALLYXXXXXXXXXX
+byte destination = 0xaa;      // destination to send to
+long lastOfferTime = 0;       // last send time
 long lastClockTime = 0;
+long lastInitSuccess = 0;
 int interval = 2000;          // interval between sends
-int counterOffer = 0;
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 22, /* data=*/ 21);   // ESP32 Thing, HW I2C with pin remapping
 
@@ -68,8 +69,8 @@ void sendMessage(String outgoing) {
 
 //////////////////////////////////////////////////////////////////////
 
-String onReceive(int packetSize) {
-  if (packetSize == 0) return "";          // if there's no packet, return
+void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, String *ptr_incoming, String *ptr_rssi, String *ptr_snr) {
+  if (packetSize == 0) return;          // if there's no packet, return
 
   // read packet header bytes:
   int recipient = LoRa.read();          // recipient address
@@ -85,26 +86,32 @@ String onReceive(int packetSize) {
 
   if (incomingLength != incoming.length()) {   // check length for error
     Serial.println("error: message length does not match length");
-    return "";                             // skip rest of function
+    return;                             // skip rest of function
   }
 
   // if the recipient isn't this device or broadcast,
-  if (recipient != localAddress && recipient != 0xFF) {
+  if (recipient != localAddress && recipient != 0xff) {
     Serial.println("This message is not for me.");
-    return "";                             // skip rest of function
+    return;                             // skip rest of function
   }
 
   // if message is for this device, or broadcast, print details:
-  Serial.println("Received from: 0x" + String(sender, HEX));
+  /*Serial.println("Received from: 0x" + String(sender, HEX));
   Serial.println("Sent to: 0x" + String(recipient, HEX));
   Serial.println("Message ID: " + String(incomingMsgId));
   Serial.println("Message length: " + String(incomingLength));
   Serial.println("Message: " + incoming);
   Serial.println("RSSI: " + String(LoRa.packetRssi()));
   Serial.println("Snr: " + String(LoRa.packetSnr()));
-  Serial.println();
+  Serial.println();*/
 
-  return incoming;
+  *ptr_rx_adr = String(recipient, HEX);
+  *ptr_tx_adr = String(sender, HEX);
+  *ptr_incoming = incoming;
+  *ptr_rssi = String(LoRa.packetRssi());
+  *ptr_snr = String(LoRa.packetSnr());
+
+  return;
 
 }
 
@@ -136,17 +143,17 @@ void tally(uint32_t color) {
 
 void tallyBlinkSlow(uint32_t color) {
   //CLOCK
-  if (clk_state == 0 && millis() - lastClockTime < 1000) {clk_state = 1;
+  if (clkState == 0 && millis() - lastClockTime < 1000) {clkState = 1;
   }
     
-  if (clk_state == 1 && millis() - lastClockTime >= 1000) {
-    if(millis() - lastClockTime <= 2000) {clk_state = 0;}
+  if (clkState == 1 && millis() - lastClockTime >= 1000) {
+    if(millis() - lastClockTime <= 2000) {clkState = 0;}
   }
     
-  if (last_clk_state != clk_state) {
-    last_clk_state = clk_state;
-    if (clk_state == 1) {strip.fill(color, 0, LED_COUNT);}
-    if (clk_state == 0) {strip.fill(nocolor, 0, LED_COUNT);}
+  if (last_clkState != clkState) {
+    last_clkState = clkState;
+    if (clkState == 1) {strip.fill(color, 0, LED_COUNT);}
+    if (clkState == 0) {strip.fill(nocolor, 0, LED_COUNT);}
   }
 
   if (millis() - lastClockTime >= 2000){lastClockTime = millis();}
@@ -155,20 +162,20 @@ void tallyBlinkSlow(uint32_t color) {
 
 void tallyBlinkFast(uint32_t color) {
   //CLOCK
-  if (clk_state == 0 && millis() - lastClockTime < 250) {clk_state = 1;
+  if (clkState == 0 && millis() - lastClockTime < 200) {clkState = 1;
   }
     
-  if (clk_state == 1 && millis() - lastClockTime >= 250) {
-    if(millis() - lastClockTime <= 500) {clk_state = 0;}
+  if (clkState == 1 && millis() - lastClockTime >= 200) {
+    if(millis() - lastClockTime <= 400) {clkState = 0;}
   }
     
-  if (last_clk_state != clk_state) {
-    last_clk_state = clk_state;
-    if (clk_state == 1) {strip.fill(color, 0, LED_COUNT);}
-    if (clk_state == 0) {strip.fill(nocolor, 0, LED_COUNT);}
+  if (last_clkState != clkState) {
+    last_clkState = clkState;
+    if (clkState == 1) {strip.fill(color, 0, LED_COUNT);}
+    if (clkState == 0) {strip.fill(nocolor, 0, LED_COUNT);}
   }
 
-  if (millis() - lastClockTime >= 500){lastClockTime = millis();}
+  if (millis() - lastClockTime >= 400){lastClockTime = millis();}
   strip.show();
 }
 
@@ -182,7 +189,7 @@ void setup() {
   Serial.begin(9600);                   // initialize serial
   while (!Serial);
 
-  mode = "nothing";
+  mode = "discover";
 
   Serial.println("");
   Serial.println("tallyWAN_receiver");
@@ -228,26 +235,15 @@ void setup() {
 
 void loop() {
 
-  //Nothing Mode
-  if ((mode == "nothing")) {
-    String incoming = onReceive(LoRa.parsePacket());
+  //Discover Mode
+  while (mode == "discover") {
+    String rx_adr, tx_adr, incoming, rssi, snr;
+    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &incoming, &rssi, &snr);    //Parse Packets and Read it
     printDisplay(incoming, "");
     tallyBlinkSlow(yellow);
 
     if (incoming == "dis-anyrec?") {
-      mode = "offer";
-    }
-
-  }
-
-  //Discover Mode
-  if ((mode == "discover")) {
-    // parse for a packet, and call onReceive with the result:
-    String incoming = onReceive(LoRa.parsePacket());
-    printDisplay(incoming, "");
-    tallyBlinkFast(yellow);
-
-    if (incoming == "dis-anyrec?") {
+      lastOfferTime = millis();
       mode = "offer";
     }
 
@@ -255,29 +251,52 @@ void loop() {
 
   //Offer Mode
   if (mode == "offer") {
-    digitalWrite(LED_PIN_INTERNAL, HIGH);
-    String message = "off-tally1";   // send a message
-    sendMessage(message);
-    printDisplay("", message);
-    Serial.println("TxD: " + message);
-    digitalWrite(LED_PIN_INTERNAL, LOW);
-
-    counterOffer++;
-    Serial.println(counterOffer);
-    mode = "discover";
-
-    if (counterOffer >= 3) {
+    tallyBlinkFast(yellow);
+    if (millis() - lastOfferTime > random(1000) + 2000) {     //Between 2 and 3 Secounds Wait with Offer
       digitalWrite(LED_PIN_INTERNAL, HIGH);
-      counterOffer = 0;
+      String message = "off-tally2";           //Send a message                                                   //TALLYXXXXXXXXXX
+      sendMessage(message);
+      printDisplay("", message);
+      Serial.println("TxD: " + message);
+      digitalWrite(LED_PIN_INTERNAL, LOW);
       mode = "request";
     }
-
   }
 
   //Request Mode
-  if ((mode == "request")) {
-    tally(yellow);
-    
+  while (mode == "request") {
+    String rx_adr, tx_adr, incoming, rssi, snr;
+    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &incoming, &rssi, &snr);    //Parse Packets and Read it
+    printDisplay(incoming, "");
+
+    if (incoming == "req-tally1on") {
+      tally(red);
+      relai(HIGH);
+    }
+    if (incoming == "req-tally1off") {
+      tally(nocolor);
+      relai(LOW);
+    }
+
+    if (incoming == "req-tally2on") {
+      tally(red);
+      relai(HIGH);
+    }
+    if (incoming == "req-tally2off") {
+      tally(nocolor);
+      relai(LOW);
+    }
+
+    if (initSuccess == LOW) {
+      tally(yellow);
+      lastInitSuccess = millis();
+      initSuccess = HIGH;
+    }
+
+    if (millis() - lastInitSuccess > 6000) {
+      tally(nocolor);
+    }
+
   }
 
   //Acknowledge Mode
