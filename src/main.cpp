@@ -15,28 +15,40 @@
 #include <Wire.h>
 #endif
 
-const int csPin = 18;          // LoRa radio chip select
-const int resetPin = 23;       // LoRa radio reset
-const int irqPin = 26;         // change for your board; must be a hardware interrupt pin
+const int csPin = 18;         // LoRa radio chip select
+const int resetPin = 23;      // LoRa radio reset
+const int irqPin = 26;        // Change for your board; must be a hardware interrupt pin
 
-String outgoing;              // outgoing message
-String mode;
+String outgoing;              // Outgoing message
+String mode = "discover";
+String name = "TallyWAN";      // Device Name
+String allSync = "";
 
-char buf_sm[12];
-char buf_rm[12];
+char buf_tx[12];
+char buf_rx[12];
+char buf_sync[4];
+char buf_name[12];
+char buf_localAddress[4];
+char buf_mode[8];
+char buf_rxAdr[4];
+char buf_txAdr[4];
 
 bool clkState;
 bool last_clkState;
 bool initSuccess = LOW;
 bool initSuccess2 = LOW;
 
-byte msgCount = 0;            // count of outgoing messages
-byte localAddress = 0xbb;     // address of this device                                           //TALLYXXXXXXXXXX
-byte destination = 0xaa;      // destination to send to
-long lastOfferTime = 0;       // last send time
+byte msgCount = 0;            // Count of outgoing messages
+byte localAddress = 0xcc;     // Address of this device              ///////////////CCCHHHAAANNNGGGEEE//////////////
+String string_localAddress = "0xcc";                                 ///////////////CCCHHHAAANNNGGGEEE//////////////
+char char_localAddress[8] = "0xcc";                                  ///////////////CCCHHHAAANNNGGGEEE//////////////
+char char_off[8] = "off-";
+byte destination = 0xaa;      // Destination to send to
+
+long lastOfferTime = 0;       // Last send time
 long lastClockTime = 0;
 long lastInitSuccess = 0;
-int interval = 2000;          // interval between sends
+int interval = 2000;          // Interval between sends
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 22, /* data=*/ 21);   // ESP32 Thing, HW I2C with pin remapping
 
@@ -96,16 +108,6 @@ void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, String *p
     return;                             // skip rest of function
   }
 
-  // if message is for this device, or broadcast, print details:
-  /*Serial.println("Received from: 0x" + String(sender, HEX));
-  Serial.println("Sent to: 0x" + String(recipient, HEX));
-  Serial.println("Message ID: " + String(incomingMsgId));
-  Serial.println("Message length: " + String(incomingLength));
-  Serial.println("Message: " + incoming);
-  Serial.println("RSSI: " + String(LoRa.packetRssi()));
-  Serial.println("Snr: " + String(LoRa.packetSnr()));
-  Serial.println();*/
-
   *ptr_rx_adr = String(recipient, HEX);
   *ptr_tx_adr = String(sender, HEX);
   *ptr_incoming = incoming;
@@ -118,18 +120,34 @@ void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, String *p
 
 //////////////////////////////////////////////////////////////////////
 
-void printDisplay(String rm, String sm) {
+void printDisplay(String tx, String rx, String txAdr) {   // tx Transmit Message,  rx Receive Message,   txAdr Receive Address
 
-  sprintf(buf_rm, "%s", rm);
-  sprintf(buf_sm, "%s", sm);
+  sprintf(buf_tx, "%s", tx);
+  sprintf(buf_rx, "%s", rx);
+  sprintf(buf_name, "%s", name);
+  sprintf(buf_sync, "%s", allSync);    
+  sprintf(buf_localAddress, "%x", localAddress);    // byte
+  sprintf(buf_mode, "%s", mode);                    // string
+  sprintf(buf_rxAdr, "%x", destination);            // byte
+  sprintf(buf_txAdr, "%s", txAdr);
 
-  u8g2.clearBuffer();					                    // clear the internal memory
+  u8g2.clearBuffer();					      // clear the internal memory
   u8g2.setFont(u8g2_font_6x13_tf);
-  u8g2.drawStr(0,10,"tallyWAN_receiver");	    // write something to the internal memory
-  u8g2.drawStr(0,25,"RxD:");
-  u8g2.drawStr(35,25,buf_rm);
-  u8g2.drawStr(0,40,"TxD:");
-  u8g2.drawStr(35,40,buf_sm);
+  u8g2.drawStr(0,10,buf_name);	    // write something to the internal memory
+  u8g2.drawStr(0,22,"Adr:");
+  u8g2.drawStr(30,22,"0x");
+  u8g2.drawStr(42,22,buf_localAddress);
+  u8g2.drawStr(62,22,buf_mode);
+  u8g2.drawStr(0,34,"TxD:");
+  u8g2.drawStr(30,34,buf_tx);
+  u8g2.drawStr(100,34,"0x");
+  u8g2.drawStr(112,34,buf_rxAdr);
+  u8g2.drawStr(0,46,"RxD:");
+  u8g2.drawStr(30,46,buf_rx);
+  u8g2.drawStr(100,46,"0x");
+  u8g2.drawStr(112,46,buf_txAdr);
+  u8g2.drawStr(0,58,"Syn:");
+  u8g2.drawStr(30,58,buf_sync);
   u8g2.sendBuffer();
 
 }
@@ -143,7 +161,7 @@ void tally(uint32_t color) {
 }
 
 void tallyBlinkSlow(uint32_t color) {
-  //CLOCK
+  // CLOCK
   if (clkState == 0 && millis() - lastClockTime < 1000) {clkState = 1;
   }
     
@@ -162,7 +180,7 @@ void tallyBlinkSlow(uint32_t color) {
 }
 
 void tallyBlinkFast(uint32_t color) {
-  //CLOCK
+  // CLOCK
   if (clkState == 0 && millis() - lastClockTime < 200) {clkState = 1;
   }
     
@@ -190,10 +208,8 @@ void setup() {
   Serial.begin(9600);                   // initialize serial
   while (!Serial);
 
-  mode = "discover";
-
   Serial.println("");
-  Serial.println("tallyWAN_receiver");
+  Serial.println(name);
 
   // override the default CS, reset, and IRQ pins (optional)
   LoRa.setPins(csPin, resetPin, irqPin); // set CS, reset, IRQ pin
@@ -213,11 +229,7 @@ void setup() {
 
   u8g2.begin();
   u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_6x13_tf);	
-  u8g2.drawStr(0,10,"tallyWAN_receiver");
-  u8g2.drawStr(0,25,"TxD:");
-  u8g2.drawStr(0,40,"RxD:");
-  u8g2.sendBuffer();
+  printDisplay("", "", "");
 
   Serial.println("OLED init succeeded.");
 
@@ -236,11 +248,11 @@ void setup() {
 
 void loop() {
 
-  //Discover Mode
+  // Discover Mode
   while (mode == "discover") {
     String rx_adr, tx_adr, incoming, rssi, snr;
-    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &incoming, &rssi, &snr);    //Parse Packets and Read it
-    printDisplay(incoming, "");
+    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &incoming, &rssi, &snr);    // Parse Packets and Read it
+    printDisplay("", incoming, tx_adr);
     tallyBlinkSlow(yellow);
 
     if (incoming == "dis-anyrec?") {
@@ -250,40 +262,41 @@ void loop() {
 
   }
 
-  //Offer Mode
+  // Offer Mode
   if (mode == "offer") {
     tallyBlinkFast(yellow);
-    if (millis() - lastOfferTime > random(1000) + 2000) {     //Between 2 and 3 Secounds Wait with Offer
+    if (millis() - lastOfferTime > random(3500) + 1500) {     // Between 1.5 and 5 Secounds Wait with Offer
       digitalWrite(LED_PIN_INTERNAL, HIGH);
-      String message = "off-tally1";           //Send a message                                                   //TALLYXXXXXXXXXX
-      sendMessage(message);
-      printDisplay("", message);
+      String message = strcat(char_off, char_localAddress);           // Add string_localAddress to string_off                   
+      sendMessage(message);                                               // Send a message      
+      allSync = string_localAddress;
+      printDisplay(message, "", "");
       Serial.println("TxD: " + message);
       digitalWrite(LED_PIN_INTERNAL, LOW);
       mode = "request";
     }
   }
 
-  //Request Mode
+  // Request Mode
   while (mode == "request") {
     String rx_adr, tx_adr, incoming, rssi, snr;
-    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &incoming, &rssi, &snr);    //Parse Packets and Read it
-    printDisplay(incoming, "");
+    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &incoming, &rssi, &snr);    // Parse Packets and Read it
+    printDisplay("", incoming, tx_adr);
 
-    if (incoming == "req-tally1on") {
+    if (incoming == "req-0xbb-high") {
       tally(red);
       relai(HIGH);
     }
-    if (incoming == "req-tally1off") {
+    if (incoming == "req-0xbb-low") {
       tally(nocolor);
       relai(LOW);
     }
 
-    if (incoming == "req-tally2on") {
+    if (incoming == "req-0xcc-high") {
       tally(red);
       relai(HIGH);
     }
-    if (incoming == "req-tally2off") {
+    if (incoming == "req-0xcc-low") {
       tally(nocolor);
       relai(LOW);
     }
@@ -301,7 +314,7 @@ void loop() {
 
   }
 
-  //Acknowledge Mode
+  // Acknowledge Mode
   if ((mode == "acknowledge")) {
   
   }
