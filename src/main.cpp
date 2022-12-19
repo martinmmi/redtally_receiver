@@ -27,33 +27,37 @@ String allSync = "";
 
 char buf_tx[12];
 char buf_rx[12];
-char buf_sync[4];
-char buf_name[12];
-char buf_localAddress[4];
-char buf_mode[8];
-char buf_rxAdr[4];
-char buf_txAdr[4];
+char buf_sync[5];
+char buf_name[9];
+char buf_localAddress[5];
+char buf_mode[9];
+char buf_rxAdr[5];
+char buf_txAdr[5];
+char buf_bV[5];
+char buf_bL[4];
 
 bool clkState;
 bool last_clkState;
 bool initSuccess = LOW;
 bool initSuccess2 = LOW;
+bool initBattery = HIGH;
 
 byte msgCount = 0;            // Count of outgoing messages
+
 byte localAddress = 0xcc;     // Address of this device              ///////////////CCCHHHAAANNNGGGEEE//////////////
 String string_localAddress = "0xcc";                                 ///////////////CCCHHHAAANNNGGGEEE//////////////
 char char_localAddress[8] = "0xcc";                                  ///////////////CCCHHHAAANNNGGGEEE//////////////
-char char_off[8] = "off-";
-byte destination = 0xaa;      // Destination to send to              
-String string_destinationAddress = "0xaa";                                 
-char char_destinationAddress[8] = "0xcc";
 
 char char_off[8] = "off-";
+
+byte destination = 0xaa;      // Destination to send to              
+String string_destinationAddress = "0xaa";                                 
+
 
 long lastOfferTime = 0;       // Last send time
 long lastClockTime = 0;
 long lastInitSuccess = 0;
-int interval = 2000;          // Interval between sends
+long lastGetBattery = 0;
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 22, /* data=*/ 21);   // ESP32 Thing, HW I2C with pin remapping
 
@@ -140,10 +144,21 @@ void printDisplay(String tx, String rx, String txAdr) {   // tx Transmit Message
   sprintf(buf_mode, "%s", mode);                    // string
   sprintf(buf_rxAdr, "%x", destination);            // byte
   sprintf(buf_txAdr, "%s", txAdr);
+  
+  if ((millis() - lastGetBattery > 5000) || (initBattery == HIGH)) {
+    snprintf(buf_bV, 5, "%f", BL.getBatteryVolts());
+    snprintf(buf_bL, 4, "%d", BL.getBatteryChargeLevel());
+    initBattery = LOW;
+    lastGetBattery = millis();
+  }
 
   u8g2.clearBuffer();					      // clear the internal memory
   u8g2.setFont(u8g2_font_6x13_tf);
   u8g2.drawStr(0,10,buf_name);	    // write something to the internal memory
+  u8g2.drawStr(62,10,buf_bV);
+  u8g2.drawStr(88,10,"V");
+  u8g2.drawStr(100,10,buf_bL);
+  u8g2.drawStr(121,10,"%");
   u8g2.drawStr(0,22,"Adr:");
   u8g2.drawStr(30,22,"0x");
   u8g2.drawStr(42,22,buf_localAddress);
