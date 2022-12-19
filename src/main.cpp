@@ -6,6 +6,7 @@
 #include <U8g2lib.h>
 #include <LoRa.h>
 #include <Adafruit_NeoPixel.h>
+#include <Pangodream_18650_CL.h>
 
 #ifdef U8X8_HAVE_HW_SPI
 #include <SPI.h>
@@ -43,7 +44,11 @@ byte localAddress = 0xcc;     // Address of this device              ///////////
 String string_localAddress = "0xcc";                                 ///////////////CCCHHHAAANNNGGGEEE//////////////
 char char_localAddress[8] = "0xcc";                                  ///////////////CCCHHHAAANNNGGGEEE//////////////
 char char_off[8] = "off-";
-byte destination = 0xaa;      // Destination to send to
+byte destination = 0xaa;      // Destination to send to              
+String string_destinationAddress = "0xaa";                                 
+char char_destinationAddress[8] = "0xcc";
+
+char char_off[8] = "off-";
 
 long lastOfferTime = 0;       // Last send time
 long lastClockTime = 0;
@@ -56,6 +61,11 @@ U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* 
 #define LED_PIN             12
 #define LED_PIN_INTERNAL    25
 #define LED_COUNT            3
+#define ADC_PIN             35
+#define CONV_FACTOR        1.7
+#define READS               20
+
+Pangodream_18650_CL BL(ADC_PIN, CONV_FACTOR, READS);
 
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
@@ -269,7 +279,7 @@ void loop() {
       digitalWrite(LED_PIN_INTERNAL, HIGH);
       String message = strcat(char_off, char_localAddress);           // Add string_localAddress to string_off                   
       sendMessage(message);                                               // Send a message      
-      allSync = string_localAddress;
+      allSync = string_destinationAddress;
       printDisplay(message, "", "");
       Serial.println("TxD: " + message);
       digitalWrite(LED_PIN_INTERNAL, LOW);
