@@ -21,13 +21,14 @@ const int resetPin = 23;      // LoRa radio reset
 const int irqPin = 26;        // Change for your board; must be a hardware interrupt pin
 
 String outgoing;              // Outgoing message
+String message;
 String mode = "discover";
 String name = "TallyWAN";      // Device Name
 String allSync = "";
 
 char buf_tx[12];
 char buf_rx[12];
-char buf_sync[5];
+char buf_sync[3];
 char buf_name[9];
 char buf_localAddress[5];
 char buf_mode[9];
@@ -43,21 +44,19 @@ bool initSuccess2 = LOW;
 bool initBattery = HIGH;
 
 byte msgCount = 0;            // Count of outgoing messages
-
-byte localAddress = 0xcc;     // Address of this device              ///////////////CCCHHHAAANNNGGGEEE//////////////
-String string_localAddress = "0xcc";                                 ///////////////CCCHHHAAANNNGGGEEE//////////////
-char char_localAddress[8] = "0xcc";                                  ///////////////CCCHHHAAANNNGGGEEE//////////////
-
-char char_off[8] = "off-";
-
+byte localAddress = 0xbb;     // Address of this device             ///////////////CCCHHHAAANNNGGGEEE//////////////
+String string_localAddress = "bb";                                 ///////////////CCCHHHAAANNNGGGEEE//////////////
 byte destination = 0xaa;      // Destination to send to              
-String string_destinationAddress = "0xaa";                                 
-
-
+String string_destinationAddress = "aa";                                 
 long lastOfferTime = 0;       // Last send time
+long lastAcknowledgeTime = 0;
+long lastControlTime = 0;
 long lastClockTime = 0;
 long lastInitSuccess = 0;
 long lastGetBattery = 0;
+long lastSessionExpired = 0;
+long lastTestTime = 0;
+long lastDisplayPrint = 0;
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 22, /* data=*/ 21);   // ESP32 Thing, HW I2C with pin remapping
 
@@ -66,7 +65,7 @@ U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* 
 #define LED_PIN_INTERNAL    25
 #define LED_COUNT            3
 #define ADC_PIN             35
-#define CONV_FACTOR        1.7
+#define CONV_FACTOR        1.8
 #define READS               20
 
 Pangodream_18650_CL BL(ADC_PIN, CONV_FACTOR, READS);
@@ -160,17 +159,14 @@ void printDisplay(String tx, String rx, String txAdr) {   // tx Transmit Message
   u8g2.drawStr(100,10,buf_bL);
   u8g2.drawStr(121,10,"%");
   u8g2.drawStr(0,22,"Adr:");
-  u8g2.drawStr(30,22,"0x");
-  u8g2.drawStr(42,22,buf_localAddress);
+  u8g2.drawStr(30,22,buf_localAddress);
   u8g2.drawStr(62,22,buf_mode);
   u8g2.drawStr(0,34,"TxD:");
   u8g2.drawStr(30,34,buf_tx);
-  u8g2.drawStr(100,34,"0x");
-  u8g2.drawStr(112,34,buf_rxAdr);
+  u8g2.drawStr(117,34,buf_rxAdr);
   u8g2.drawStr(0,46,"RxD:");
   u8g2.drawStr(30,46,buf_rx);
-  u8g2.drawStr(100,46,"0x");
-  u8g2.drawStr(112,46,buf_txAdr);
+  u8g2.drawStr(117,46,buf_txAdr);
   u8g2.drawStr(0,58,"Syn:");
   u8g2.drawStr(30,58,buf_sync);
   u8g2.sendBuffer();
@@ -187,11 +183,11 @@ void tally(uint32_t color) {
 
 void tallyBlinkSlow(uint32_t color) {
   // CLOCK
-  if (clkState == 0 && millis() - lastClockTime < 1000) {clkState = 1;
+  if (clkState == 0 && millis() - lastClockTime < 800) {clkState = 1;
   }
     
-  if (clkState == 1 && millis() - lastClockTime >= 1000) {
-    if(millis() - lastClockTime <= 2000) {clkState = 0;}
+  if (clkState == 1 && millis() - lastClockTime >= 800) {
+    if(millis() - lastClockTime <= 1600) {clkState = 0;}
   }
     
   if (last_clkState != clkState) {
@@ -200,17 +196,17 @@ void tallyBlinkSlow(uint32_t color) {
     if (clkState == 0) {strip.fill(nocolor, 0, LED_COUNT);}
   }
 
-  if (millis() - lastClockTime >= 2000){lastClockTime = millis();}
+  if (millis() - lastClockTime >= 1600){lastClockTime = millis();}
   strip.show();
 }
 
 void tallyBlinkFast(uint32_t color) {
   // CLOCK
-  if (clkState == 0 && millis() - lastClockTime < 200) {clkState = 1;
+  if (clkState == 0 && millis() - lastClockTime < 180) {clkState = 1;
   }
     
-  if (clkState == 1 && millis() - lastClockTime >= 200) {
-    if(millis() - lastClockTime <= 400) {clkState = 0;}
+  if (clkState == 1 && millis() - lastClockTime >= 180) {
+    if(millis() - lastClockTime <= 360) {clkState = 0;}
   }
     
   if (last_clkState != clkState) {
@@ -219,7 +215,7 @@ void tallyBlinkFast(uint32_t color) {
     if (clkState == 0) {strip.fill(nocolor, 0, LED_COUNT);}
   }
 
-  if (millis() - lastClockTime >= 400){lastClockTime = millis();}
+  if (millis() - lastClockTime >= 360){lastClockTime = millis();}
   strip.show();
 }
 
@@ -277,12 +273,21 @@ void loop() {
   while (mode == "discover") {
     String rx_adr, tx_adr, incoming, rssi, snr;
     onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &incoming, &rssi, &snr);    // Parse Packets and Read it
-    printDisplay("", incoming, tx_adr);
+    
+    if ((incoming != "") || (millis() - lastTestTime > 1500)) {
+      printDisplay("", incoming, tx_adr);
+      lastTestTime = millis();
+    }
+    if (incoming != "") {
+      Serial.println("RxD: " + incoming);
+    }
+
     tallyBlinkSlow(yellow);
 
-    if (incoming == "dis-anyrec?") {
+    if ((incoming == "dis-anyrec?") && (tx_adr == "aa")) {
       lastOfferTime = millis();
       mode = "offer";
+      break;
     }
 
   }
@@ -290,10 +295,10 @@ void loop() {
   // Offer Mode
   if (mode == "offer") {
     tallyBlinkFast(yellow);
-    if (millis() - lastOfferTime > random(3500) + 1500) {     // Between 1.5 and 5 Secounds Wait with Offer
+    if (millis() - lastOfferTime > random(2500) + 1000) {      // Between 1 and 3.5 Secounds Wait with Offer
       digitalWrite(LED_PIN_INTERNAL, HIGH);
-      String message = strcat(char_off, char_localAddress);           // Add string_localAddress to string_off                   
-      sendMessage(message);                                               // Send a message      
+      message = "off";                            
+      sendMessage(message);                                    // Send a message      
       allSync = string_destinationAddress;
       printDisplay(message, "", "");
       Serial.println("TxD: " + message);
@@ -306,24 +311,49 @@ void loop() {
   while (mode == "request") {
     String rx_adr, tx_adr, incoming, rssi, snr;
     onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &incoming, &rssi, &snr);    // Parse Packets and Read it
-    printDisplay("", incoming, tx_adr);
 
-    if (incoming == "req-0xbb-high") {
+    if ((incoming != "") || (millis() - lastTestTime > 1500)) {
+        printDisplay("", incoming, tx_adr);
+        lastTestTime = millis();
+      }
+      if (incoming != "") {
+        Serial.println("RxD: " + incoming);
+      }
+
+    if ((incoming == "req-high") && (rx_adr == "bb")) {
       tally(red);
       relai(HIGH);
+      mode = "acknowledge";
+      lastAcknowledgeTime = millis();
+      break;
     }
-    if (incoming == "req-0xbb-low") {
+    if ((incoming == "req-low") && (rx_adr == "bb")) {
       tally(nocolor);
       relai(LOW);
+      mode = "acknowledge";
+      lastAcknowledgeTime = millis();
+      break;
     }
 
-    if (incoming == "req-0xcc-high") {
+    if ((incoming == "req-high") && (rx_adr == "cc")) {
       tally(red);
       relai(HIGH);
+      mode = "acknowledge";
+      lastAcknowledgeTime = millis();
+      break;
     }
-    if (incoming == "req-0xcc-low") {
+    if ((incoming == "req-low") && (rx_adr == "cc")) {
       tally(nocolor);
       relai(LOW);
+      mode = "acknowledge";
+      lastAcknowledgeTime = millis();
+      break;
+    }
+
+    if ((incoming == "con-anyrec?") && (rx_adr == "ff")) {
+      mode = "control";
+      lastControlTime = millis();
+      break;
     }
 
     if (initSuccess == LOW) {
@@ -337,11 +367,39 @@ void loop() {
       initSuccess2 = HIGH;
     }
 
+    if ((millis() - lastSessionExpired > 660000)) {           // Status Sync expired after 11 minutes
+      allSync = "";
+    }
+
   }
 
   // Acknowledge Mode
-  if ((mode == "acknowledge")) {
-  
+  if ((mode == "acknowledge") && (millis() - lastAcknowledgeTime > random(150) + 100)) {
+    digitalWrite(LED_PIN_INTERNAL, HIGH);
+    message = "ack";              
+    sendMessage(message);                                    // Send a message      
+    printDisplay(message, "", "");
+    Serial.println("TxD: " + message);
+    digitalWrite(LED_PIN_INTERNAL, LOW);
+    mode = "request";
+  }
+
+  // Control Mode
+  if ((mode == "control") && (millis() - lastControlTime > random(150) + 100)) {
+    digitalWrite(LED_PIN_INTERNAL, HIGH);
+    message = "con";
+    sendMessage(message);                                    // Send a message      
+    printDisplay(message, "", "");
+    Serial.println("TxD: " + message);
+    digitalWrite(LED_PIN_INTERNAL, LOW);
+    lastSessionExpired = millis();
+    mode = "request";
+  }
+
+  // Function Print Display if nothing work
+  if (millis() - lastDisplayPrint > 10000) {
+    printDisplay("", "", "");
+    lastDisplayPrint = millis();
   }
 
 }
