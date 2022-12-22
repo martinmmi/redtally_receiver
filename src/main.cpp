@@ -43,12 +43,13 @@ bool initSuccess = LOW;
 bool initSuccess2 = LOW;
 bool initBattery = HIGH;
 
+int expiredControlTime = 120000;
 int defaultBrightness = 100;
-int waitOfferControl = random(500) + 2000;                          ///////////////CCCHHHAAANNNGGGEEE//////////////
+int waitOffer = random(500) + 4000;                                ///////////////CCCHHHAAANNNGGGEEE//////////////
 
 byte msgCount = 0;            // Count of outgoing messages
-byte localAddress = 0xcc;     // Address of this device            ///////////////CCCHHHAAANNNGGGEEE//////////////
-String string_localAddress = "cc";                                 ///////////////CCCHHHAAANNNGGGEEE//////////////
+byte localAddress = 0xdd;     // Address of this device            ///////////////CCCHHHAAANNNGGGEEE//////////////
+String string_localAddress = "dd";                                 ///////////////CCCHHHAAANNNGGGEEE//////////////
 byte destination = 0xaa;      // Destination to send to              
 String string_destinationAddress = "aa";                                 
 long lastOfferTime = 0;       // Last send time
@@ -56,7 +57,7 @@ long lastAcknowledgeTime = 0;
 long lastClockTime = 0;
 long lastInitSuccess = 0;
 long lastGetBattery = 0;
-long lastSessionExpired = 0;
+long lastExpiredControlTime = 0;
 long lastTestTime = 0;
 long lastDisplayPrint = 0;
 long lastControlTime = 0;
@@ -297,7 +298,7 @@ void loop() {
   // Offer Mode
   if (mode == "offer") {
     tallyBlinkFast(yellow);
-    if (millis() - lastOfferTime > waitOfferControl) {      
+    if (millis() - lastOfferTime > waitOffer) {      
       digitalWrite(LED_PIN_INTERNAL, HIGH);
       message = "off";                            
       sendMessage(message);                                    // Send a message      
@@ -353,6 +354,36 @@ void loop() {
       break;
     }
 
+    if ((incoming == "req-high") && (rx_adr == "dd")) {
+      tally(red);
+      relai(HIGH);
+      mode = "acknowledge";
+      lastAcknowledgeTime = millis();
+      break;
+    }
+    if ((incoming == "req-low") && (rx_adr == "dd")) {
+      tally(nocolor);
+      relai(LOW);
+      mode = "acknowledge";
+      lastAcknowledgeTime = millis();
+      break;
+    }
+
+    if ((incoming == "req-high") && (rx_adr == "ee")) {
+      tally(red);
+      relai(HIGH);
+      mode = "acknowledge";
+      lastAcknowledgeTime = millis();
+      break;
+    }
+    if ((incoming == "req-low") && (rx_adr == "ee")) {
+      tally(nocolor);
+      relai(LOW);
+      mode = "acknowledge";
+      lastAcknowledgeTime = millis();
+      break;
+    }
+
     if ((incoming == "con-anyrec?") && (rx_adr == "ff")) {
       mode = "control";
       lastControlTime = millis();
@@ -375,7 +406,7 @@ void loop() {
       initSuccess2 = HIGH;
     }
 
-    if ((millis() - lastSessionExpired > 660000)) {           // Status Sync expired after 11 minutes
+    if ((millis() - lastExpiredControlTime > expiredControlTime)) {           // Status Sync expired
       allSync = "";
       printDisplay("", "", "");
     }
@@ -394,14 +425,14 @@ void loop() {
   }
 
   // Control Mode
-  if ((mode == "control") && (millis() - lastControlTime > waitOfferControl)) {
+  if ((mode == "control") && (millis() - lastControlTime > random(150) + 100)) {
     digitalWrite(LED_PIN_INTERNAL, HIGH);
     message = "con";
     sendMessage(message);                                    // Send a message      
     printDisplay(message, "", "");
     Serial.println("TxD: " + message);
     digitalWrite(LED_PIN_INTERNAL, LOW);
-    lastSessionExpired = millis();
+    lastExpiredControlTime = millis();
     mode = "request";
   }
 
