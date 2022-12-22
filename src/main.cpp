@@ -38,13 +38,15 @@ char buf_bV[5];
 char buf_bL[4];
 
 bool clkState;
-bool last_clkState;
+bool lastClkState;
 bool initSuccess = LOW;
 bool initSuccess2 = LOW;
 bool initBattery = HIGH;
+bool connected = LOW;
+bool connectedState = HIGH;
 
 int counterDiscoverBack = 0;
-int expiredControlTime = 240000;      // 4 minutes
+int expiredControlTime = 240000;      // 5 minutes
 int defaultBrightness = 100;
 int waitOffer = random(500) + 1500;                                ///////////////CCCHHHAAANNNGGGEEE//////////////
 
@@ -55,6 +57,7 @@ byte destination = 0xaa;      // Destination to send to
 String string_destinationAddress = "aa";                                 
 long lastOfferTime = 0;       // Last send time
 long lastAcknowledgeTime = 0;
+long lastControlTime = 0;
 long lastClockTime = 0;
 long lastInitSuccess = 0;
 long lastGetBattery = 0;
@@ -193,8 +196,8 @@ void tallyBlinkSlow(uint32_t color) {
     if(millis() - lastClockTime <= 1600) {clkState = 0;}
   }
     
-  if (last_clkState != clkState) {
-    last_clkState = clkState;
+  if (lastClkState != clkState) {
+    lastClkState = clkState;
     if (clkState == 1) {strip.fill(color, 0, LED_COUNT);}
     if (clkState == 0) {strip.fill(nocolor, 0, LED_COUNT);}
   }
@@ -212,8 +215,8 @@ void tallyBlinkFast(uint32_t color) {
     if(millis() - lastClockTime <= 300) {clkState = 0;}
   }
     
-  if (last_clkState != clkState) {
-    last_clkState = clkState;
+  if (lastClkState != clkState) {
+    lastClkState = clkState;
     if (clkState == 1) {strip.fill(color, 0, LED_COUNT);}
     if (clkState == 0) {strip.fill(nocolor, 0, LED_COUNT);}
   }
@@ -277,6 +280,7 @@ void loop() {
     String rx_adr, tx_adr, incoming, rssi, snr;
     onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &incoming, &rssi, &snr);    // Parse Packets and Read it
     
+    // Print Incoming and RxD und TxD Adress
     if ((incoming != "") || (millis() - lastTestTime > 1500)) {
       printDisplay("", incoming, tx_adr);
       lastTestTime = millis();
@@ -290,8 +294,13 @@ void loop() {
 
     if ((incoming == "dis-anyrec?") && (tx_adr == "aa")) {
       lastOfferTime = millis();
-      lastDiscoverTime = millis();
       mode = "offer";
+      break;
+    }
+
+    if ((incoming == "con-rec?") && ((rx_adr == "bb") || (rx_adr == "cc") || (rx_adr == "dd") ||  (rx_adr == "ee"))) {
+      mode = "control";
+      lastControlTime = millis();
       break;
     }
 
@@ -308,6 +317,7 @@ void loop() {
       printDisplay(message, "", "");
       Serial.println("TxD: " + message);
       digitalWrite(LED_PIN_INTERNAL, LOW);
+      connected = HIGH;
       mode = "request";
     }
   }
@@ -317,6 +327,7 @@ void loop() {
     String rx_adr, tx_adr, incoming, rssi, snr;
     onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &incoming, &rssi, &snr);    // Parse Packets and Read it
 
+    // Print Incoming and RxD und TxD Adress
     if ((incoming != "") || (millis() - lastTestTime > 1500)) {
         printDisplay("", incoming, tx_adr);
         lastTestTime = millis();
@@ -394,23 +405,9 @@ void loop() {
       break;
     }
 
-    if ((incoming == "con-rec?") && (rx_adr == "bb")) {
+    if ((incoming == "con-rec?") && ((rx_adr == "bb") || (rx_adr == "cc") || (rx_adr == "dd") ||  (rx_adr == "ee"))) {
       mode = "control";
-      break;
-    }
-
-    if ((incoming == "con-rec?") && (rx_adr == "cc")) {
-      mode = "control";
-      break;
-    }
-
-    if ((incoming == "con-rec?") && (rx_adr == "dd")) {
-      mode = "control";
-      break;
-    }
-
-    if ((incoming == "con-rec?") && (rx_adr == "ee")) {
-      mode = "control";
+      lastControlTime = millis();
       break;
     }
 
@@ -423,6 +420,7 @@ void loop() {
 
     if (initSuccess == LOW) {
       tally(yellow);
+      lastDiscoverTime = millis();
       lastInitSuccess = millis();
       initSuccess = HIGH;
     }
@@ -435,8 +433,18 @@ void loop() {
     if ((millis() - lastExpiredControlTime > expiredControlTime)) {           // Status Sync expired
       allSync = "";
       printDisplay("", "", "");
+      tally(yellow);
+      connectedState != connectedState;
+      connected = LOW;
     }
 
+    if ((connected == HIGH) && (connectedState == HIGH)) {           
+      allSync = string_destinationAddress;
+      printDisplay("", "", "");
+      tally(nocolor);
+      connectedState != connectedState;
+      connected = HIGH;
+    }
   }
 
   // Acknowledge Mode
@@ -451,7 +459,7 @@ void loop() {
   }
 
   // Control Mode
-  if ((mode == "control")) {
+  if ((mode == "control") && (millis() - lastControlTime > random(150) + 100)) {
     digitalWrite(LED_PIN_INTERNAL, HIGH);
     message = "con";
     sendMessage(message);                                    // Send a message      
@@ -459,6 +467,7 @@ void loop() {
     Serial.println("TxD: " + message);
     digitalWrite(LED_PIN_INTERNAL, LOW);
     lastExpiredControlTime = millis();
+    connected = HIGH;
     mode = "request";
   }
 
