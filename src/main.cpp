@@ -43,13 +43,14 @@ bool initSuccess = LOW;
 bool initSuccess2 = LOW;
 bool initBattery = HIGH;
 
-int expiredControlTime = 120000;
+int counterDiscoverBack = 0;
+int expiredControlTime = 240000;      // 4 minutes
 int defaultBrightness = 100;
-int waitOffer = random(500) + 4000;                                ///////////////CCCHHHAAANNNGGGEEE//////////////
+int waitOffer = random(500) + 1500;                                ///////////////CCCHHHAAANNNGGGEEE//////////////
 
 byte msgCount = 0;            // Count of outgoing messages
-byte localAddress = 0xdd;     // Address of this device            ///////////////CCCHHHAAANNNGGGEEE//////////////
-String string_localAddress = "dd";                                 ///////////////CCCHHHAAANNNGGGEEE//////////////
+byte localAddress = 0xbb;     // Address of this device            ///////////////CCCHHHAAANNNGGGEEE//////////////
+String string_localAddress = "bb";                                 ///////////////CCCHHHAAANNNGGGEEE//////////////
 byte destination = 0xaa;      // Destination to send to              
 String string_destinationAddress = "aa";                                 
 long lastOfferTime = 0;       // Last send time
@@ -60,7 +61,7 @@ long lastGetBattery = 0;
 long lastExpiredControlTime = 0;
 long lastTestTime = 0;
 long lastDisplayPrint = 0;
-long lastControlTime = 0;
+long lastDiscoverTime = 0;    // Last send time
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 22, /* data=*/ 21);   // ESP32 Thing, HW I2C with pin remapping
 
@@ -289,6 +290,7 @@ void loop() {
 
     if ((incoming == "dis-anyrec?") && (tx_adr == "aa")) {
       lastOfferTime = millis();
+      lastDiscoverTime = millis();
       mode = "offer";
       break;
     }
@@ -329,6 +331,7 @@ void loop() {
       relai(HIGH);
       mode = "acknowledge";
       lastAcknowledgeTime = millis();
+      counterDiscoverBack++;
       break;
     }
     if ((incoming == "req-low") && (rx_adr == "bb")) {
@@ -336,6 +339,7 @@ void loop() {
       relai(LOW);
       mode = "acknowledge";
       lastAcknowledgeTime = millis();
+      counterDiscoverBack++;
       break;
     }
 
@@ -344,6 +348,7 @@ void loop() {
       relai(HIGH);
       mode = "acknowledge";
       lastAcknowledgeTime = millis();
+      counterDiscoverBack++;
       break;
     }
     if ((incoming == "req-low") && (rx_adr == "cc")) {
@@ -351,6 +356,7 @@ void loop() {
       relai(LOW);
       mode = "acknowledge";
       lastAcknowledgeTime = millis();
+      counterDiscoverBack++;
       break;
     }
 
@@ -359,6 +365,7 @@ void loop() {
       relai(HIGH);
       mode = "acknowledge";
       lastAcknowledgeTime = millis();
+      counterDiscoverBack++;
       break;
     }
     if ((incoming == "req-low") && (rx_adr == "dd")) {
@@ -366,6 +373,7 @@ void loop() {
       relai(LOW);
       mode = "acknowledge";
       lastAcknowledgeTime = millis();
+      counterDiscoverBack++;
       break;
     }
 
@@ -374,6 +382,7 @@ void loop() {
       relai(HIGH);
       mode = "acknowledge";
       lastAcknowledgeTime = millis();
+      counterDiscoverBack++;
       break;
     }
     if ((incoming == "req-low") && (rx_adr == "ee")) {
@@ -381,17 +390,34 @@ void loop() {
       relai(LOW);
       mode = "acknowledge";
       lastAcknowledgeTime = millis();
+      counterDiscoverBack++;
       break;
     }
 
-    if ((incoming == "con-anyrec?") && (rx_adr == "ff")) {
+    if ((incoming == "con-rec?") && (rx_adr == "bb")) {
       mode = "control";
-      lastControlTime = millis();
       break;
     }
 
-    if ((incoming == "dis-anyrec?") && (rx_adr == "ff")) {
+    if ((incoming == "con-rec?") && (rx_adr == "cc")) {
+      mode = "control";
+      break;
+    }
+
+    if ((incoming == "con-rec?") && (rx_adr == "dd")) {
+      mode = "control";
+      break;
+    }
+
+    if ((incoming == "con-rec?") && (rx_adr == "ee")) {
+      mode = "control";
+      break;
+    }
+
+    if ((incoming == "dis-anyrec?") && (rx_adr == "ff") && (counterDiscoverBack == 6) && (millis() - lastDiscoverTime > 300000)) {
       mode = "discover";
+      counterDiscoverBack = 0;
+      lastDiscoverTime = millis();
       break;
     }
 
@@ -425,7 +451,7 @@ void loop() {
   }
 
   // Control Mode
-  if ((mode == "control") && (millis() - lastControlTime > random(150) + 100)) {
+  if ((mode == "control")) {
     digitalWrite(LED_PIN_INTERNAL, HIGH);
     message = "con";
     sendMessage(message);                                    // Send a message      
