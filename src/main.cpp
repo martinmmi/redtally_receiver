@@ -43,20 +43,23 @@ bool initSuccess = LOW;
 bool initSuccess2 = LOW;
 bool initBattery = HIGH;
 
+int defaultBrightness = 100;
+int waitOfferControl = random(500) + 2000;                          ///////////////CCCHHHAAANNNGGGEEE//////////////
+
 byte msgCount = 0;            // Count of outgoing messages
-byte localAddress = 0xbb;     // Address of this device             ///////////////CCCHHHAAANNNGGGEEE//////////////
-String string_localAddress = "bb";                                 ///////////////CCCHHHAAANNNGGGEEE//////////////
+byte localAddress = 0xcc;     // Address of this device            ///////////////CCCHHHAAANNNGGGEEE//////////////
+String string_localAddress = "cc";                                 ///////////////CCCHHHAAANNNGGGEEE//////////////
 byte destination = 0xaa;      // Destination to send to              
 String string_destinationAddress = "aa";                                 
 long lastOfferTime = 0;       // Last send time
 long lastAcknowledgeTime = 0;
-long lastControlTime = 0;
 long lastClockTime = 0;
 long lastInitSuccess = 0;
 long lastGetBattery = 0;
 long lastSessionExpired = 0;
 long lastTestTime = 0;
 long lastDisplayPrint = 0;
+long lastControlTime = 0;
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 22, /* data=*/ 21);   // ESP32 Thing, HW I2C with pin remapping
 
@@ -77,8 +80,6 @@ uint32_t green = strip.Color(0, 255, 0);
 uint32_t blue = strip.Color(0, 0, 255);
 uint32_t yellow = strip.Color(255, 50, 0);
 uint32_t nocolor = strip.Color(0, 0, 0);
-
-int defaultBrightness = 100;
 
 //////////////////////////////////////////////////////////////////////
 
@@ -202,11 +203,11 @@ void tallyBlinkSlow(uint32_t color) {
 
 void tallyBlinkFast(uint32_t color) {
   // CLOCK
-  if (clkState == 0 && millis() - lastClockTime < 180) {clkState = 1;
+  if (clkState == 0 && millis() - lastClockTime < 150) {clkState = 1;
   }
     
-  if (clkState == 1 && millis() - lastClockTime >= 180) {
-    if(millis() - lastClockTime <= 360) {clkState = 0;}
+  if (clkState == 1 && millis() - lastClockTime >= 150) {
+    if(millis() - lastClockTime <= 300) {clkState = 0;}
   }
     
   if (last_clkState != clkState) {
@@ -215,7 +216,7 @@ void tallyBlinkFast(uint32_t color) {
     if (clkState == 0) {strip.fill(nocolor, 0, LED_COUNT);}
   }
 
-  if (millis() - lastClockTime >= 360){lastClockTime = millis();}
+  if (millis() - lastClockTime >= 300){lastClockTime = millis();}
   strip.show();
 }
 
@@ -280,6 +281,7 @@ void loop() {
     }
     if (incoming != "") {
       Serial.println("RxD: " + incoming);
+      Serial.print("RxD_Adr: "); Serial.print(rx_adr); Serial.print(" TxD_Adr: "); Serial.println(tx_adr);
     }
 
     tallyBlinkSlow(yellow);
@@ -295,7 +297,7 @@ void loop() {
   // Offer Mode
   if (mode == "offer") {
     tallyBlinkFast(yellow);
-    if (millis() - lastOfferTime > random(2500) + 1000) {      // Between 1 and 3.5 Secounds Wait with Offer
+    if (millis() - lastOfferTime > waitOfferControl) {      
       digitalWrite(LED_PIN_INTERNAL, HIGH);
       message = "off";                            
       sendMessage(message);                                    // Send a message      
@@ -318,6 +320,7 @@ void loop() {
       }
       if (incoming != "") {
         Serial.println("RxD: " + incoming);
+        Serial.print("RxD_Adr: "); Serial.print(rx_adr); Serial.print(" TxD_Adr: "); Serial.println(tx_adr);
       }
 
     if ((incoming == "req-high") && (rx_adr == "bb")) {
@@ -356,6 +359,11 @@ void loop() {
       break;
     }
 
+    if ((incoming == "dis-anyrec?") && (rx_adr == "ff")) {
+      mode = "discover";
+      break;
+    }
+
     if (initSuccess == LOW) {
       tally(yellow);
       lastInitSuccess = millis();
@@ -369,6 +377,7 @@ void loop() {
 
     if ((millis() - lastSessionExpired > 660000)) {           // Status Sync expired after 11 minutes
       allSync = "";
+      printDisplay("", "", "");
     }
 
   }
@@ -385,7 +394,7 @@ void loop() {
   }
 
   // Control Mode
-  if ((mode == "control") && (millis() - lastControlTime > random(150) + 100)) {
+  if ((mode == "control") && (millis() - lastControlTime > waitOfferControl)) {
     digitalWrite(LED_PIN_INTERNAL, HIGH);
     message = "con";
     sendMessage(message);                                    // Send a message      
