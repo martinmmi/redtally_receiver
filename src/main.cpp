@@ -48,11 +48,11 @@ bool connectedState = HIGH;
 int counterDiscoverBack = 0;
 int expiredControlTime = 240000;      // 5 minutes
 int defaultBrightness = 100;
-int waitOffer = random(500) + 1500;                                ///////////////CCCHHHAAANNNGGGEEE//////////////
+int waitOffer = random(500) + 3000;                                ///////////////CCCHHHAAANNNGGGEEE//////////////
 
 byte msgCount = 0;            // Count of outgoing messages
-byte localAddress = 0xbb;     // Address of this device            ///////////////CCCHHHAAANNNGGGEEE//////////////
-String string_localAddress = "bb";                                 ///////////////CCCHHHAAANNNGGGEEE//////////////
+byte localAddress = 0xcc;     // Address of this device            ///////////////CCCHHHAAANNNGGGEEE//////////////
+String string_localAddress = "cc";                                 ///////////////CCCHHHAAANNNGGGEEE//////////////
 byte destination = 0xaa;      // Destination to send to              
 String string_destinationAddress = "aa";                                 
 long lastOfferTime = 0;       // Last send time
@@ -75,6 +75,8 @@ U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* 
 #define ADC_PIN             35
 #define CONV_FACTOR        1.8
 #define READS               20
+#define image_width         32
+#define image_height        32
 
 Pangodream_18650_CL BL(ADC_PIN, CONV_FACTOR, READS);
 
@@ -255,8 +257,10 @@ void setup() {
   Serial.println("LoRa init succeeded.");
 
   u8g2.begin();
+  u8g2.enableUTF8Print();
   u8g2.clearBuffer();
   printDisplay("", "", "");
+  u8g2.sendBuffer();
 
   Serial.println("OLED init succeeded.");
 
