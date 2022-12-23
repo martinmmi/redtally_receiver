@@ -339,6 +339,7 @@ void loop() {
       if (incoming != "") {
         Serial.println("RxD: " + incoming);
         Serial.print("RxD_Adr: "); Serial.print(rx_adr); Serial.print(" TxD_Adr: "); Serial.println(tx_adr);
+        Serial.print("Connected: "); Serial.print(connected); Serial.print(" ConnectedState: "); Serial.println(connectedState);
       }
 
     if ((incoming == "req-high") && (rx_adr == "bb")) {
@@ -426,6 +427,7 @@ void loop() {
       tally(yellow);
       lastDiscoverTime = millis();
       lastInitSuccess = millis();
+      lastExpiredControlTime = millis();
       initSuccess = HIGH;
     }
 
@@ -442,7 +444,7 @@ void loop() {
       connected = LOW;
     }
 
-    if ((connected == HIGH) && (connectedState == HIGH)) {           
+    if ((connected == HIGH) && (connectedState == LOW)) {           
       allSync = string_destinationAddress;
       printDisplay("", "", "");
       tally(nocolor);
