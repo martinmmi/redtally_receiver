@@ -7,6 +7,7 @@
 #include <LoRa.h>
 #include <Adafruit_NeoPixel.h>
 #include <Pangodream_18650_CL.h>
+#include "bitmaps.h"
 
 #ifdef U8X8_HAVE_HW_SPI
 #include <SPI.h>
@@ -23,8 +24,12 @@ const int irqPin = 26;        // Change for your board; must be a hardware inter
 String outgoing;              // Outgoing message
 String message;
 String mode = "discover";
-String name = "TallyWAN";      // Device Name
-String allSync = "";
+String name = "REDTALLY";      // Device Name
+String allSync;
+String oledInit;
+String stripInit;
+String loraInit;
+String outputInit;
 
 char buf_tx[12];
 char buf_rx[12];
@@ -36,23 +41,14 @@ char buf_rxAdr[5];
 char buf_txAdr[5];
 char buf_bV[5];
 char buf_bL[4];
-
-bool clkState;
-bool lastClkState;
-bool initSuccess = LOW;
-bool initSuccess2 = LOW;
-bool initBattery = HIGH;
-bool connected = LOW;
-bool connectedState = HIGH;
-
-int counterDiscoverBack = 0;
-int expiredControlTime = 240000;      // 5 minutes
-int defaultBrightness = 100;
-int waitOffer = random(500) + 3000;                                ///////////////CCCHHHAAANNNGGGEEE//////////////
+char buf_oledInit[12];
+char buf_stripInit[12];
+char buf_loraInit[12];
+char buf_outputInit[12];
 
 byte msgCount = 0;            // Count of outgoing messages
-byte localAddress = 0xcc;     // Address of this device            ///////////////CCCHHHAAANNNGGGEEE//////////////
-String string_localAddress = "cc";                                 ///////////////CCCHHHAAANNNGGGEEE//////////////
+byte localAddress = 0xdd;     // Address of this device            ///////////////CCCHHHAAANNNGGGEEE//////////////
+String string_localAddress = "dd";                                 ///////////////CCCHHHAAANNNGGGEEE//////////////
 byte destination = 0xaa;      // Destination to send to              
 String string_destinationAddress = "aa";                                 
 long lastOfferTime = 0;       // Last send time
@@ -66,6 +62,20 @@ long lastTestTime = 0;
 long lastDisplayPrint = 0;
 long lastDiscoverTime = 0;    // Last send time
 
+int counterDiscoverBack = 0;
+int expiredControlTime = 240000;      // 5 minutes
+int defaultBrightness = 150;
+int waitOffer = random(500) + 4500;                                ///////////////CCCHHHAAANNNGGGEEE//////////////
+
+bool clkState;
+bool lastClkState;
+bool initSuccess = LOW;
+bool initSuccess2 = LOW;
+bool initBattery = HIGH;
+bool connected = LOW;
+bool connectedState = HIGH;
+bool goOff = LOW;
+
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 22, /* data=*/ 21);   // ESP32 Thing, HW I2C with pin remapping
 
 #define RELAI_PIN           14
@@ -75,8 +85,12 @@ U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* 
 #define ADC_PIN             35
 #define CONV_FACTOR        1.8
 #define READS               20
-#define image_width         32
-#define image_height        32
+#define loadWidth           50
+#define loadHeight          50
+#define logoWidth          128
+#define logoHeight          64
+#define loraWidth          128
+#define loraHeight          64
 
 Pangodream_18650_CL BL(ADC_PIN, CONV_FACTOR, READS);
 
@@ -87,6 +101,119 @@ uint32_t green = strip.Color(0, 255, 0);
 uint32_t blue = strip.Color(0, 0, 255);
 uint32_t yellow = strip.Color(255, 50, 0);
 uint32_t nocolor = strip.Color(0, 0, 0);
+
+//////////////////////////////////////////////////////////////////////
+
+void printLogo(int color, int wait) {
+
+  u8g2.setDrawColor(color);
+  
+  // logo 1
+  u8g2.firstPage();
+  do { u8g2.drawXBM(0, 0, logoWidth, logoHeight, logo1); }
+  while (u8g2.nextPage());
+  delay(wait);
+  // logo 2
+  u8g2.firstPage();
+  do { u8g2.drawXBM(0, 0, logoWidth, logoHeight, logo2); }
+  while (u8g2.nextPage());
+  delay(wait);
+  // logo 3
+  u8g2.firstPage();
+  do { u8g2.drawXBM(0, 0,logoWidth, logoHeight, logo3); }
+  while (u8g2.nextPage());
+  delay(wait);
+  // logo 4
+  u8g2.firstPage();
+  do { u8g2.drawXBM(0, 0, logoWidth, logoHeight, logo4); }
+  while (u8g2.nextPage());
+  delay(wait);
+  // logo 5
+  u8g2.firstPage();
+  do { u8g2.drawXBM(0, 0, logoWidth, logoHeight, logo5); }
+  while (u8g2.nextPage());
+  delay(wait);
+  // logo 6
+  u8g2.firstPage();
+  do { u8g2.drawXBM(0, 0, logoWidth, logoHeight, logo6); }
+  while (u8g2.nextPage());
+  delay(wait);
+  // logo 7
+  u8g2.firstPage();
+  do { u8g2.drawXBM(0, 0, logoWidth, logoHeight, logo7); }
+  while (u8g2.nextPage());
+  delay(wait);
+  // logo 8
+  u8g2.firstPage();
+  do { u8g2.drawXBM(0, 0, logoWidth, logoHeight, logo8); }
+  while (u8g2.nextPage());
+  delay(wait);
+  // logo 9
+  u8g2.firstPage();
+  do { u8g2.drawXBM(0, 0, logoWidth, logoHeight, logo9); }
+  while (u8g2.nextPage());
+  delay(wait);
+  // logo 10
+  u8g2.firstPage();
+  do { u8g2.drawXBM(0, 0, logoWidth, logoHeight, logo10); }
+  while (u8g2.nextPage());
+  delay(wait);
+}
+
+void printLoad(int color, int wait, int count) {
+
+  u8g2.setDrawColor(color);
+
+  for (int i=0; i < count; i++) {
+    // load 1
+    u8g2.firstPage();
+    do { u8g2.drawXBM(39, 12, loadWidth, loadHeight, load1); }
+    while (u8g2.nextPage());
+    delay(wait);
+    // load 2
+    u8g2.firstPage();
+    do { u8g2.drawXBM(39, 12, loadWidth, loadHeight, load2); }
+    while (u8g2.nextPage());
+    delay(wait);
+    // load 3
+    u8g2.firstPage();
+    do { u8g2.drawXBM(39, 12, loadWidth, loadHeight, load3); }
+    while (u8g2.nextPage());
+    delay(wait);
+    // load 4
+    u8g2.firstPage();
+    do { u8g2.drawXBM(39, 12, loadWidth, loadHeight, load4); }
+    while (u8g2.nextPage());
+    delay(wait);
+    // load 5
+    u8g2.firstPage();
+    do { u8g2.drawXBM(39, 12, loadWidth, loadHeight, load5); }
+    while (u8g2.nextPage());
+    delay(wait);
+    // load 6
+    u8g2.firstPage();
+    do { u8g2.drawXBM(39, 12, loadWidth, loadHeight, load6); }
+    while (u8g2.nextPage());
+    delay(wait);
+    // load 7
+    u8g2.firstPage();
+    do { u8g2.drawXBM(39, 12, loadWidth, loadHeight, load7); }
+    while (u8g2.nextPage());
+    delay(wait);
+    // load 8
+    u8g2.firstPage();
+    do { u8g2.drawXBM(39, 12, loadWidth, loadHeight, load8); }
+    while (u8g2.nextPage());
+    delay(wait);
+    }
+}
+
+void printLora(int color) {
+  u8g2.setDrawColor(color);
+  u8g2.firstPage();
+  do { u8g2.drawXBM(0, 0, loraWidth, loraHeight, lora); }
+  while (u8g2.nextPage());
+}
 
 //////////////////////////////////////////////////////////////////////
 
@@ -240,6 +367,39 @@ void setup() {
   Serial.println("");
   Serial.println(name);
 
+  u8g2.begin();
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_6x10_tf);
+
+  strip.begin();    
+  strip.setBrightness(defaultBrightness);    
+  strip.show();
+
+  //        Color, Delay, Runs
+  printLogo(0, 50);
+  delay(1000);
+
+  printLoad(1, 60, 2);
+
+  printLogo(0, 25);
+  delay(500);
+
+  printLoad(1, 60, 4);
+
+  Serial.println("OLED init succeeded.");
+  oledInit = "OLED init";
+  sprintf(buf_oledInit, "%s", oledInit);
+  u8g2.drawStr(0,15,buf_oledInit);
+  u8g2.sendBuffer();
+  delay(300);
+
+  Serial.println("Strip init succeeded.");
+  stripInit = "Strip init";
+  sprintf(buf_stripInit, "%s", stripInit);
+  u8g2.drawStr(0,25,buf_stripInit);
+  u8g2.sendBuffer();
+  delay(300);
+
   // override the default CS, reset, and IRQ pins (optional)
   LoRa.setPins(csPin, resetPin, irqPin); // set CS, reset, IRQ pin
   LoRa.setTxPower(17);  //2-20 default 17
@@ -251,27 +411,32 @@ void setup() {
 
   if (!LoRa.begin(868E6)) {             // initialize ratio at 868 MHz
     Serial.println("LoRa init failed. Check your connections.");
+    loraInit = "LoRa failed";
+    sprintf(buf_loraInit, "%s", loraInit);   
+    u8g2.drawStr(0,35,buf_loraInit);
+    u8g2.sendBuffer();
     while (true);                       // if failed, do nothing
   }
 
   Serial.println("LoRa init succeeded.");
-
-  u8g2.begin();
-  u8g2.enableUTF8Print();
-  u8g2.clearBuffer();
-  printDisplay("", "", "");
+  loraInit = "LoRa init";
+  sprintf(buf_loraInit, "%s", loraInit);   
+  u8g2.drawStr(0,35,buf_loraInit);
   u8g2.sendBuffer();
-
-  Serial.println("OLED init succeeded.");
-
-  strip.begin();    
-  strip.setBrightness(defaultBrightness);    
-  strip.show();
-
-  Serial.println("Strip init succeeded.");
+  delay(300);
 
   pinMode(LED_PIN_INTERNAL, OUTPUT);
   pinMode(RELAI_PIN, OUTPUT);
+
+  Serial.println("Outputs init succeeded.");
+  outputInit = "Outputs init";
+  sprintf(buf_outputInit, "%s", outputInit);   
+  u8g2.drawStr(0,45,buf_outputInit);
+  u8g2.sendBuffer();
+  delay(300);
+
+  printLora(1);
+  delay(3000);
 
 }
 
@@ -444,12 +609,13 @@ void loop() {
       connected = LOW;
     }
 
-    if ((connected == HIGH) && (connectedState == LOW)) {           
+    if ((connected == HIGH) && (connectedState == LOW) || (goOff == HIGH)) {           
       allSync = string_destinationAddress;
       printDisplay("", "", "");
       tally(nocolor);
       connectedState != connectedState;
       connected = HIGH;
+      goOff = LOW;
     }
   }
 
@@ -474,6 +640,7 @@ void loop() {
     digitalWrite(LED_PIN_INTERNAL, LOW);
     lastExpiredControlTime = millis();
     connected = HIGH;
+    goOff = HIGH;
     mode = "request";
   }
 
