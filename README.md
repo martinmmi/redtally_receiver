@@ -1,2 +1,2 @@
-# tallyWAN_receiver
-Programming tallyWAN in C/C++
+# redtally_receiver
+Programming redtally in C/C++
