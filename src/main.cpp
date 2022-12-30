@@ -51,12 +51,14 @@ char buf_outputInit[12];
 char buf_lost[2];
 char buf_rssi[4];
 
-byte msgCount = 0;            // Count of outgoing messages
-byte localAddress = 0xdd;     // Address of this device            ///////////////CCCHHHAAANNNGGGEEE//////////////
-String string_localAddress = "dd";                                 ///////////////CCCHHHAAANNNGGGEEE//////////////
-byte destination = 0xaa;      // Destination to send to              
+byte msgKey1 = 0x2a;                      // Key of outgoing messages
+byte msgKey2 = 0x56;
+byte msgCount = 0;                        // Count of outgoing messages
+byte localAddress = 0xcc;                 // Address of this device   ///////////////CCCHHHAAANNNGGGEEE//////////////
+String string_localAddress = "cc";                                    ///////////////CCCHHHAAANNNGGGEEE//////////////
+byte destination = 0xaa;                  // Destination to send to              
 String string_destinationAddress = "aa";                                 
-long lastOfferTime = 0;       // Last send time
+long lastOfferTime = 0;                   // Last send time
 long lastAcknowledgeTime = 0;
 long lastControlTime = 0;
 long lastClockTime = 0;
@@ -68,10 +70,9 @@ long lastDisplayPrint = 0;
 long lastEmpty = 0;
 long lastDiscoverTime = 0;    // Last send time
 
-int counterDiscoverBack = 0;
 int expiredControlTime = 270000;      // 4.5 minutes
 int defaultBrightness = 150;
-int waitOffer = random(500) + 4500;                                ///////////////CCCHHHAAANNNGGGEEE//////////////
+int waitOffer = random(500) + 3000;                                   ///////////////CCCHHHAAANNNGGGEEE//////////////
 int buf_rssi_int;
 int bL = 0;
 int posXssi = 0;
@@ -90,10 +91,11 @@ bool initSuccess = LOW;
 bool initSuccess2 = LOW;
 bool connected = LOW;
 bool connectedInit = LOW;
-bool connectedState = HIGH;
+bool connectedState = LOW;
 bool goOff = LOW;
 bool initBattery = LOW;
 bool batteryAttention = LOW;
+bool batteryAttentionState = LOW;
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 22, /* data=*/ 21);   // ESP32 Thing, HW I2C with pin remapping
 
@@ -242,13 +244,15 @@ void printLora(int color) {
 
 //////////////////////////////////////////////////////////////////////
 
-void sendMessage(String outgoing) {
+void sendMessage(String message) {
   LoRa.beginPacket();                   // start packet
   LoRa.write(destination);              // add destination address
   LoRa.write(localAddress);             // add sender address
+  LoRa.write(msgKey1);                  // add message KEY
+  LoRa.write(msgKey2);                  // add message KEY
   LoRa.write(msgCount);                 // add message ID
-  LoRa.write(outgoing.length());        // add payload length
-  LoRa.print(outgoing);                 // add payload
+  LoRa.write(message.length());        // add payload length
+  LoRa.print(message);                 // add payload
   LoRa.endPacket();                     // finish packet and send it
   msgCount++;                           // increment message ID
 }
@@ -258,9 +262,26 @@ void sendMessage(String outgoing) {
 void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, String *ptr_incoming, String *ptr_rssi, String *ptr_snr) {
   if (packetSize == 0) return;          // if there's no packet, return
 
+  //Clear the variables
+  *ptr_rx_adr = "";
+  *ptr_tx_adr = "";
+  *ptr_incoming = "";
+  *ptr_rssi = "";
+  *ptr_snr = "";
+
+  string_destinationAddress = "";
+  rx_adr = "";
+  outgoing = "";
+  tx_adr = "";
+  incoming = "";
+  rssi = "";
+  snr = "";
+
   // read packet header bytes:
   int recipient = LoRa.read();          // recipient address
   byte sender = LoRa.read();            // sender address
+  byte incomingMsgKey1 = LoRa.read();   // incoming msg KEY1
+  byte incomingMsgKey2 = LoRa.read();   // incoming msg KEY2
   byte incomingMsgId = LoRa.read();     // incoming msg ID
   byte incomingLength = LoRa.read();    // incoming msg length
 
@@ -268,14 +289,19 @@ void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, String *p
     incoming += (char)LoRa.read();
   }
 
+  if (incomingMsgKey1 != msgKey1 && incomingMsgKey2 != msgKey2) {
+    Serial.println("Error: Message key is false.");
+    return;                             // skip rest of function
+  }
+
   if (incomingLength != incoming.length()) {   // check length for error
-    Serial.println("Error: message length does not match length.");
+    Serial.println("Error: Message length does not match length.");
     return;                             // skip rest of function
   }
 
   // if the recipient isn't this device or broadcast,
   if (recipient != localAddress && recipient != 0xff) {
-    Serial.println("This message is not for me.");
+    Serial.println("This Message is not for me.");
     return;                             // skip rest of function
   }
 
@@ -392,11 +418,11 @@ if ((millis() - lastGetBattery > 10000) || (initBattery == LOW)) {
 
   //Battery Attention Indicator
   if ((batteryAttention == HIGH)) {
-    batteryAttention = !batteryAttention;
-    if ((batteryAttention = HIGH)) {
+    batteryAttentionState == !batteryAttentionState;
+    if ((batteryAttentionState == HIGH)) {
       u8g2.drawXBM(99, 0, batteryWidth, batteryHeight, battery0);
     }
-    if ((batteryAttention = LOW)) {
+    if ((batteryAttentionState == LOW)) {
       u8g2.drawXBM(99, 0, batteryWidth, batteryHeight, battery1);
     } 
   }
@@ -438,15 +464,16 @@ if ((millis() - lastGetBattery > 10000) || (initBattery == LOW)) {
 
   u8g2.sendBuffer();
 
-  Serial.println("");
-  Serial.print("Mode: "); Serial.println(mode);
+  //Serial.println("");
+  //Serial.print("Mode: "); Serial.println(mode);
   //Serial.print("Voltage: "); Serial.print(bV); Serial.println(" V");
   //Serial.print("Voltage Level: "); Serial.print(bL); Serial.println(" %");
-  Serial.print("TxD Adr: "); Serial.println(string_destinationAddress);
-  Serial.print("TxD: "); Serial.println(outgoing);
-  Serial.print("RxD Adr: "); Serial.println(tx_adr);
-  Serial.print("RxD: "); Serial.println(incoming);
-  Serial.print("Rssi: "); Serial.println(buf_rssi_int);
+  //Serial.print("TxD Adr: "); Serial.println(string_destinationAddress);
+  //Serial.print("TxD: "); Serial.println(outgoing);
+  //Serial.print("RxD Adr: "); Serial.println(tx_adr);
+  //Serial.print("RxD: "); Serial.println(incoming);
+  //Serial.print("Rssi: "); Serial.println(buf_rssi_int);
+  //Serial.print("LastDiscoverTime: "); Serial.println(lastDiscoverTime);
   //Serial.print("Connected: "); Serial.println(connected);
   //Serial.print("Connected Init: "); Serial.println(connectedInit);
   //Serial.print("Connected State: "); Serial.println(connectedState);
@@ -645,7 +672,9 @@ void loop() {
 
     tallyBlinkSlow(yellow);
 
-    if ((incoming == "dis-anyrec?") && (tx_adr == "aa")) {
+    //Routine for discover new receivers at the start
+    if ((incoming == "dis-anyrec?") && (tx_adr == "aa") && (rx_adr == "ff")) {
+      Serial.println("RxD: " + incoming);
       lastOfferTime = millis();
       mode = "offer";
       mode_s = "off";
@@ -656,8 +685,11 @@ void loop() {
       emptyDisplay();
       break;
     }
-
-    if ((incoming == "con-rec?") && (tx_adr == "aa") && ((rx_adr == "bb") || (rx_adr == "cc") || (rx_adr == "dd") ||  (rx_adr == "ee"))) {
+    
+    //Routine for rediscover receivers, which lost signal, empty battery or switched off
+    if ((incoming == "con-rec?") && (tx_adr == "aa")) {
+      Serial.println("RxD: " + incoming);
+      Serial.println("con-yeah!");
       mode = "control";
       mode_s = "con";
       reg_incoming = incoming;
@@ -697,6 +729,7 @@ void loop() {
     onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &incoming, &rssi, &snr);    // Parse Packets and Read it
 
     if ((incoming == "req-high") && (rx_adr == "bb") && (connected == HIGH)) {
+      Serial.println("RxD: " + incoming);
       tally(red);
       relai(HIGH);
       mode = "acknowledge";
@@ -704,10 +737,10 @@ void loop() {
       lastAcknowledgeTime = millis();
       printDisplay();
       emptyDisplay();
-      counterDiscoverBack++;
       break;
     }
     if ((incoming == "req-low") && (rx_adr == "bb") && (connected == HIGH)) {
+      Serial.println("RxD: " + incoming);
       tally(nocolor);
       relai(LOW);
       mode = "acknowledge";
@@ -715,11 +748,11 @@ void loop() {
       lastAcknowledgeTime = millis();
       printDisplay();
       emptyDisplay();
-      counterDiscoverBack++;
       break;
     }
 
     if ((incoming == "req-high") && (rx_adr == "cc") && (connected == HIGH)) {
+      Serial.println("RxD: " + incoming);
       tally(red);
       relai(HIGH);
       mode = "acknowledge";
@@ -727,10 +760,10 @@ void loop() {
       lastAcknowledgeTime = millis();
       printDisplay();
       emptyDisplay();
-      counterDiscoverBack++;
       break;
     }
     if ((incoming == "req-low") && (rx_adr == "cc") && (connected == HIGH)) {
+      Serial.println("RxD: " + incoming);
       tally(nocolor);
       relai(LOW);
       mode = "acknowledge";
@@ -738,11 +771,11 @@ void loop() {
       lastAcknowledgeTime = millis();
       printDisplay();
       emptyDisplay();
-      counterDiscoverBack++;
       break;
     }
 
     if ((incoming == "req-high") && (rx_adr == "dd") && (connected == HIGH)) {
+      Serial.println("RxD: " + incoming);
       tally(red);
       relai(HIGH);
       mode = "acknowledge";
@@ -750,10 +783,10 @@ void loop() {
       lastAcknowledgeTime = millis();
       printDisplay();
       emptyDisplay();
-      counterDiscoverBack++;
       break;
     }
     if ((incoming == "req-low") && (rx_adr == "dd") && (connected == HIGH)) {
+      Serial.println("RxD: " + incoming);
       tally(nocolor);
       relai(LOW);
       mode = "acknowledge";
@@ -761,11 +794,11 @@ void loop() {
       lastAcknowledgeTime = millis();
       printDisplay();
       emptyDisplay();
-      counterDiscoverBack++;
       break;
     }
 
     if ((incoming == "req-high") && (rx_adr == "ee") && (connected == HIGH)) {
+      Serial.println("RxD: " + incoming);
       tally(red);
       relai(HIGH);
       mode = "acknowledge";
@@ -773,10 +806,10 @@ void loop() {
       lastAcknowledgeTime = millis();
       printDisplay();
       emptyDisplay();
-      counterDiscoverBack++;
       break;
     }
     if ((incoming == "req-low") && (rx_adr == "ee") && (connected == HIGH)) {
+      Serial.println("RxD: " + incoming);
       tally(nocolor);
       relai(LOW);
       mode = "acknowledge";
@@ -784,11 +817,13 @@ void loop() {
       lastAcknowledgeTime = millis();
       printDisplay();
       emptyDisplay();
-      counterDiscoverBack++;
       break;
     }
-
-    if ((incoming == "con-rec?") && (tx_adr == "aa") && ((rx_adr == "bb") || (rx_adr == "cc") || (rx_adr == "dd") ||  (rx_adr == "ee"))) {
+    
+    //Routine for Control Online Status
+    if ((incoming == "con-rec?") && (tx_adr == "aa")) {
+      Serial.println("RxD: " + incoming);
+      Serial.println("con-YEAH!");
       mode = "control";
       mode_s = "con";
       reg_incoming = incoming;
@@ -800,10 +835,14 @@ void loop() {
       break;
     }
 
-    if ((incoming == "dis-anyrec?") && (rx_adr == "ff") && (counterDiscoverBack == 6) && (millis() - lastDiscoverTime > 300000)) {
+    //Routine for Base Reset after 3 Minutes On-Time
+    if ((incoming == "dis-anyrec?") && (tx_adr == "aa") && (rx_adr == "ff") && (initSuccess == HIGH) && (millis() - lastDiscoverTime > 180000)) {
+      Serial.println("RxD: " + incoming);
+      Serial.println("dis-YEAH!");
       mode = "discover";
       mode_s = "dis";
-      counterDiscoverBack = 0;
+      initSuccess = LOW;
+      initSuccess2 = LOW;
       lastDiscoverTime = millis();
       printDisplay();
       emptyDisplay();
@@ -831,16 +870,16 @@ void loop() {
 
     if ((millis() - lastExpiredControlTime > expiredControlTime)) {           // Status Sync expired
       tally(yellow);
-      connectedState != connectedState;
+      relai(LOW);
+      connectedState = HIGH;
       connected = LOW;
       printDisplay();
     }
 
-    if ((connected == HIGH) && (connectedState == LOW) || (goOff == HIGH)) {           
+    if ((connected == HIGH) && (connectedState == HIGH)) {           
       tally(nocolor);
-      connectedState != connectedState;
+      connectedState = LOW;
       connected = HIGH;
-      goOff = LOW;
       printDisplay();
     }
 
@@ -872,9 +911,13 @@ void loop() {
     Serial.println("TxD: " + outgoing);
     digitalWrite(LED_PIN_INTERNAL, LOW);
     lastExpiredControlTime = millis();
+
+    if ((connectedState == HIGH) && (connected = LOW)) {
+      tally(nocolor);
+    }
+
     connectedInit = HIGH;
     connected = HIGH;
-    goOff = HIGH;
     mode = "request";
     mode_s = "req";
     emptyDisplay();
@@ -882,7 +925,7 @@ void loop() {
 
   // Function Print Display if nothing work
   if (millis() - lastDisplayPrint > 5000) {
-
+    emptyDisplay();
     printDisplay();
   }
 
