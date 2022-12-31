@@ -1,6 +1,8 @@
 //////////////////////////////////////////////////////////////////////
 //////////////////// REDTALLY by Martin Mittrenga ////////////////////
 //////////////////////////////////////////////////////////////////////
+///////////////////////////// Receiver ///////////////////////////////
+//////////////////////////////////////////////////////////////////////
 
 #include <Arduino.h>
 #include <U8g2lib.h>
@@ -23,7 +25,8 @@ const int irqPin = 26;        // Change for your board; must be a hardware inter
 
 String mode = "discover";
 String mode_s = "dis";
-String name = "REDTALLY";      // Device Name
+String name = "REDTALLY Receiver";      // Device Name
+String version = "0.0a";                // Frimeware Version
 String lost = "x";
 String numb = "aa";
 String rx_adr, tx_adr, incoming, outgoing, rssi, snr;
@@ -37,7 +40,7 @@ String outputInit;
 char buf_tx[12];
 char buf_rx[12];
 char buf_sync[3];
-char buf_name[9];
+char buf_version[5];
 char buf_localAddress[5];
 char buf_mode[4];
 char buf_rxAdr[5];
@@ -51,13 +54,21 @@ char buf_outputInit[12];
 char buf_lost[2];
 char buf_rssi[4];
 
+///////////////////////////////////////////////
+////////// CHANGE for each Receiver ///////////
+
+byte localAddress = 0xcc;                 // Address of this device   
+String string_localAddress = "cc";                                    
+byte destination = 0xaa;                  // Destination to send to              
+String string_destinationAddress = "aa";          
+
+///////////////////////////////////////////////
+///////////////////////////////////////////////
+
 byte msgKey1 = 0x2a;                      // Key of outgoing messages
 byte msgKey2 = 0x56;
 byte msgCount = 0;                        // Count of outgoing messages
-byte localAddress = 0xcc;                 // Address of this device   ///////////////CCCHHHAAANNNGGGEEE//////////////
-String string_localAddress = "cc";                                    ///////////////CCCHHHAAANNNGGGEEE//////////////
-byte destination = 0xaa;                  // Destination to send to              
-String string_destinationAddress = "aa";                                 
+
 long lastOfferTime = 0;                   // Last send time
 long lastAcknowledgeTime = 0;
 long lastControlTime = 0;
@@ -70,10 +81,10 @@ long lastDisplayPrint = 0;
 long lastEmpty = 0;
 long lastDiscoverTime = 0;    // Last send time
 
-int expiredControlTime = 270000;      // 4.5 minutes
+int expiredControlTime = 270000;      // 4.5 minutes waiting for control signal, then turn offline
 int defaultBrightness = 150;
-int waitOffer = random(500) + 3000;                                   ///////////////CCCHHHAAANNNGGGEEE//////////////
-int buf_rssi_int;
+int waitOffer = 0;                                   
+int buf_rssi_int = 0;
 int bL = 0;
 int posXssi = 0;
 int posYssi = 0;
@@ -251,8 +262,10 @@ void sendMessage(String message) {
   LoRa.write(msgKey1);                  // add message KEY
   LoRa.write(msgKey2);                  // add message KEY
   LoRa.write(msgCount);                 // add message ID
-  LoRa.write(message.length());        // add payload length
-  LoRa.print(message);                 // add payload
+  LoRa.write(message.length());         // add payload length
+  LoRa.print(message);                  // add payload
+  //LoRa.print(reg_rssi);                 // add measured rssi
+  //LoRa.print(bL);                       // add measured battery level
   LoRa.endPacket();                     // finish packet and send it
   msgCount++;                           // increment message ID
 }
@@ -338,7 +351,7 @@ void printDisplay() {   // tx Transmit Message,  rx Receive Message,   txAdr Rec
 
   sprintf(buf_tx, "%s", outgoing);
   sprintf(buf_rx, "%s", incoming);
-  sprintf(buf_name, "%s", name);
+  sprintf(buf_version, "%s", version);
   sprintf(buf_sync, "%s", numb);    
   sprintf(buf_localAddress, "%x", localAddress);         // byte
   sprintf(buf_mode, "%s", mode_s);                       // string
@@ -534,6 +547,7 @@ void relai(bool state) {
 
 void posRssi() {
   if (string_localAddress == "bb") {
+    waitOffer = random(500) + 1500;   
     posXssi = 8;
     posYssi = 46;
     posXrssi = 0;
@@ -544,6 +558,7 @@ void posRssi() {
     posYlost = 47;
   }
   if (string_localAddress == "cc") {
+    waitOffer = random(500) + 3000;
     posXssi = 40;
     posYssi = 46;
     posXrssi = 32;
@@ -554,6 +569,7 @@ void posRssi() {
     posYlost = 47;
   }
   if (string_localAddress == "dd") {
+    waitOffer = random(500) + 4500;
     posXssi = 72;
     posYssi = 46;
     posXrssi = 64;
@@ -564,6 +580,7 @@ void posRssi() {
     posYlost = 47;
   }
   if (string_localAddress == "ee") {
+    waitOffer = random(500) + 6000;
     posXssi = 104;
     posYssi = 46;
     posXrssi = 96;
@@ -602,6 +619,11 @@ void setup() {
   delay(500);
 
   printLoad(1, 60, 4);
+
+  Serial.println("Version: " + version);
+  sprintf(buf_version, "%s", version);
+  u8g2.drawStr(99,60,buf_version);
+  u8g2.sendBuffer();
 
   Serial.println("OLED init succeeded.");
   oledInit = "OLED init";
@@ -650,10 +672,10 @@ void setup() {
   sprintf(buf_outputInit, "%s", outputInit);   
   u8g2.drawStr(0,45,buf_outputInit);
   u8g2.sendBuffer();
-  delay(300);
+  delay(500);
 
   printLora(1);
-  delay(3000);
+  delay(2500);
 
   posRssi();
 
@@ -823,7 +845,6 @@ void loop() {
     //Routine for Control Online Status
     if ((incoming == "con-rec?") && (tx_adr == "aa")) {
       Serial.println("RxD: " + incoming);
-      Serial.println("con-YEAH!");
       mode = "control";
       mode_s = "con";
       reg_incoming = incoming;
@@ -835,14 +856,15 @@ void loop() {
       break;
     }
 
-    //Routine for Base Reset after 3 Minutes On-Time
-    if ((incoming == "dis-anyrec?") && (tx_adr == "aa") && (rx_adr == "ff") && (initSuccess == HIGH) && (millis() - lastDiscoverTime > 180000)) {
+    //Routine for Base Reset after 10 Minutes On-Time
+    if ((incoming == "dis-anyrec?") && (tx_adr == "aa") && (rx_adr == "ff") && (initSuccess == HIGH) && (millis() - lastDiscoverTime > 600000)) {
       Serial.println("RxD: " + incoming);
-      Serial.println("dis-YEAH!");
       mode = "discover";
       mode_s = "dis";
       initSuccess = LOW;
       initSuccess2 = LOW;
+      relai(LOW);
+      tally(nocolor);
       lastDiscoverTime = millis();
       printDisplay();
       emptyDisplay();
@@ -880,6 +902,12 @@ void loop() {
       tally(nocolor);
       connectedState = LOW;
       connected = HIGH;
+      printDisplay();
+    }
+
+    // Function Print Display if nothing work
+    if (millis() - lastDisplayPrint > 5000) {
+      emptyDisplay();
       printDisplay();
     }
 
@@ -921,12 +949,6 @@ void loop() {
     mode = "request";
     mode_s = "req";
     emptyDisplay();
-  }
-
-  // Function Print Display if nothing work
-  if (millis() - lastDisplayPrint > 5000) {
-    emptyDisplay();
-    printDisplay();
   }
 
 }
