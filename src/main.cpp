@@ -57,8 +57,8 @@ char buf_rssi[4];
 ///////////////////////////////////////////////
 ////////// CHANGE for each Receiver ///////////
 
-byte localAddress = 0xcc;                 // Address of this device   
-String string_localAddress = "cc";                                    
+byte localAddress = 0xbb;                 // Address of this device   
+String string_localAddress = "bb";                                    
 byte destination = 0xaa;                  // Destination to send to              
 String string_destinationAddress = "aa";          
 
@@ -81,7 +81,8 @@ long lastDisplayPrint = 0;
 long lastEmpty = 0;
 long lastDiscoverTime = 0;    // Last send time
 
-int expiredControlTime = 270000;      // 4.5 minutes waiting for control signal, then turn offline
+int expiredControlTime = 480000;      // 8 minutes waiting for control signal, then turn offline
+int expiredControlTimeSync = 0;       // New Value, if the first con signal is received + 10s Transition Waiting
 int defaultBrightness = 150;
 int waitOffer = 0;                                   
 int buf_rssi_int = 0;
@@ -545,9 +546,10 @@ void relai(bool state) {
 
 //////////////////////////////////////////////////////////////////////
 
-void posRssi() {
+void intTallys() {
   if (string_localAddress == "bb") {
-    waitOffer = random(500) + 1500;   
+    waitOffer = random(500) + 1500;
+    expiredControlTimeSync = 200000;   
     posXssi = 8;
     posYssi = 46;
     posXrssi = 0;
@@ -559,6 +561,7 @@ void posRssi() {
   }
   if (string_localAddress == "cc") {
     waitOffer = random(500) + 3000;
+    expiredControlTimeSync = 210000;  
     posXssi = 40;
     posYssi = 46;
     posXrssi = 32;
@@ -570,6 +573,7 @@ void posRssi() {
   }
   if (string_localAddress == "dd") {
     waitOffer = random(500) + 4500;
+    expiredControlTimeSync = 220000;
     posXssi = 72;
     posYssi = 46;
     posXrssi = 64;
@@ -581,6 +585,7 @@ void posRssi() {
   }
   if (string_localAddress == "ee") {
     waitOffer = random(500) + 6000;
+    expiredControlTimeSync = 230000;
     posXssi = 104;
     posYssi = 46;
     posXrssi = 96;
@@ -677,7 +682,7 @@ void setup() {
   printLora(1);
   delay(2500);
 
-  posRssi();
+  intTallys();
 
   emptyDisplay();
   printDisplay();
@@ -716,7 +721,8 @@ void loop() {
       mode_s = "con";
       reg_incoming = incoming;
       reg_tx_adr = tx_adr;
-      reg_rssi = rssi;  
+      reg_rssi = rssi;
+      expiredControlTime = expiredControlTimeSync;  // After the first con Message, the time for offline status is reduced 
       lastControlTime = millis();
       printDisplay();
       emptyDisplay();
@@ -850,6 +856,7 @@ void loop() {
       reg_incoming = incoming;
       reg_tx_adr = tx_adr;
       reg_rssi = rssi;  
+      expiredControlTime = expiredControlTimeSync;  // After the first con Message, the time for offline status is reduced
       lastControlTime = millis();
       printDisplay();
       emptyDisplay();
@@ -914,7 +921,7 @@ void loop() {
   }
 
   // Acknowledge Mode
-  if ((mode == "acknowledge") && (millis() - lastAcknowledgeTime > random(150) + 100)) {
+  if ((mode == "acknowledge") && (millis() - lastAcknowledgeTime > random(150) + 150)) {
     digitalWrite(LED_PIN_INTERNAL, HIGH);
     destination = 0xaa;
     string_destinationAddress = "aa"; 
@@ -929,7 +936,7 @@ void loop() {
   }
 
   // Control Mode
-  if ((mode == "control") && (millis() - lastControlTime > random(150) + 100)) {
+  if ((mode == "control") && (millis() - lastControlTime > random(150) + 150)) {
     digitalWrite(LED_PIN_INTERNAL, HIGH);
     destination = 0xaa;
     string_destinationAddress = "aa"; 
