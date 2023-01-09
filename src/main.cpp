@@ -57,8 +57,8 @@ char buf_rssi[4];
 ///////////////////////////////////////////////
 ////////// CHANGE for each Receiver ///////////
 
-byte localAddress = 0xbb;                 // Address of this device   
-String string_localAddress = "bb";                                    
+byte localAddress = 0xee;                 // Address of this device   
+String string_localAddress = "ee";                                    
 byte destination = 0xaa;                  // Destination to send to              
 String string_destinationAddress = "aa";          
 
@@ -432,7 +432,7 @@ if ((millis() - lastGetBattery > 10000) || (initBattery == LOW)) {
 
   //Battery Attention Indicator
   if ((batteryAttention == HIGH)) {
-    batteryAttentionState == !batteryAttentionState;
+    batteryAttentionState = !batteryAttentionState;
     if ((batteryAttentionState == HIGH)) {
       u8g2.drawXBM(99, 0, batteryWidth, batteryHeight, battery0);
     }
@@ -549,7 +549,7 @@ void relai(bool state) {
 void intTallys() {
   if (string_localAddress == "bb") {
     waitOffer = random(500) + 1500;
-    expiredControlTimeSync = 200000;   
+    expiredControlTimeSync = 210000;   
     posXssi = 8;
     posYssi = 46;
     posXrssi = 0;
@@ -561,7 +561,7 @@ void intTallys() {
   }
   if (string_localAddress == "cc") {
     waitOffer = random(500) + 3000;
-    expiredControlTimeSync = 210000;  
+    expiredControlTimeSync = 220000;  
     posXssi = 40;
     posYssi = 46;
     posXrssi = 32;
@@ -573,7 +573,7 @@ void intTallys() {
   }
   if (string_localAddress == "dd") {
     waitOffer = random(500) + 4500;
-    expiredControlTimeSync = 220000;
+    expiredControlTimeSync = 230000;
     posXssi = 72;
     posYssi = 46;
     posXrssi = 64;
@@ -585,7 +585,7 @@ void intTallys() {
   }
   if (string_localAddress == "ee") {
     waitOffer = random(500) + 6000;
-    expiredControlTimeSync = 230000;
+    expiredControlTimeSync = 240000;
     posXssi = 104;
     posYssi = 46;
     posXrssi = 96;
