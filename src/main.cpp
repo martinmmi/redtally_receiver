@@ -9,7 +9,9 @@
 #include <LoRa.h>
 #include <Adafruit_NeoPixel.h>
 #include <Pangodream_18650_CL.h>
+#include <Preferences.h>                //lib for flashstoreage
 #include "bitmaps.h"
+
 
 #ifdef U8X8_HAVE_HW_SPI
 #include <SPI.h>
@@ -22,6 +24,10 @@
 const int csPin = 18;         // LoRa radio chip select
 const int resetPin = 23;      // LoRa radio reset
 const int irqPin = 26;        // Change for your board; must be a hardware interrupt pin
+
+uint32_t cpu_frequency = 0;
+uint32_t xtal_frequency = 0;
+uint32_t apb_frequency = 0;
 
 String mode = "discover";
 String mode_s = "dis";
@@ -87,7 +93,7 @@ long lastDiscoverTime = 0;    // Last send time
 
 int expiredControlTime = 480000;      // 8 minutes waiting for control signal, then turn offline
 int expiredControlTimeSync = 0;       // New Value, if the first con signal is received + 10s Transition Waiting
-int defaultBrightness = 150;
+int defaultBrightness = 200;
 int waitOffer = 0;                                   
 int buf_rssi_int = 0;
 //int buf_snr_int = 0;
@@ -506,6 +512,9 @@ if ((millis() - lastGetBattery > 10000) || (initBattery == LOW)) {
   //Serial.print("Connected: "); Serial.println(connected);
   //Serial.print("Connected Init: "); Serial.println(connectedInit);
   //Serial.print("Connected State: "); Serial.println(connectedState);
+  //Serial.print("CPU Frequency: "); Serial.print(cpu_frequency); Serial.println(" MHz");
+  //Serial.print("XTAL Frequency: "); Serial.print(xtal_frequency); Serial.println(" MHz");
+  //Serial.print("APB Frequency: "); Serial.print(apb_frequency); Serial.println(" Hz");
 
   lastDisplayPrint = millis();
 }
@@ -615,7 +624,14 @@ void intTallys() {
 //////////////////////////////////////////////////////////////////////
 
 void setup() {
-  Serial.begin(9600);                   // initialize serial
+
+  setCpuFrequencyMhz(80);               // Set CPU Frequenz 240, 160, 80, 40, 20, 10 Mhz
+  
+  cpu_frequency = getCpuFrequencyMhz();
+  xtal_frequency = getXtalFrequencyMhz();
+  apb_frequency = getApbFrequency();
+
+  Serial.begin(115200);                   // initialize serial
   while (!Serial);
 
   Serial.println("");
