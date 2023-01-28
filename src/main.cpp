@@ -30,7 +30,7 @@ String version = "0.0a";                // Frimeware Version
 String lost = "x";
 String numb = "aa";
 String rx_adr, tx_adr, incoming, outgoing, rssi, snr;
-String reg_incoming, reg_tx_adr, reg_rssi;
+String reg_incoming, reg_tx_adr, reg_rssi, reg_snr;
 
 String oledInit;
 String stripInit;
@@ -53,12 +53,13 @@ char buf_loraInit[12];
 char buf_outputInit[12];
 char buf_lost[2];
 char buf_rssi[4];
+//char buf_snr[3];
 
 ///////////////////////////////////////////////
 ////////// CHANGE for each Receiver ///////////
 
-byte localAddress = 0xee;                 // Address of this device   
-String string_localAddress = "ee";                                    
+byte localAddress = 0xcc;                 // Address of this device   
+String string_localAddress = "cc";                                    
 byte destination = 0xaa;                  // Destination to send to              
 String string_destinationAddress = "aa";          
 
@@ -68,6 +69,9 @@ String string_destinationAddress = "aa";
 byte msgKey1 = 0x2a;                      // Key of outgoing messages
 byte msgKey2 = 0x56;
 byte msgCount = 0;                        // Count of outgoing messages
+byte byte_rssi;
+//byte byte_snr;
+byte byte_bL;
 
 long lastOfferTime = 0;                   // Last send time
 long lastAcknowledgeTime = 0;
@@ -86,6 +90,7 @@ int expiredControlTimeSync = 0;       // New Value, if the first con signal is r
 int defaultBrightness = 150;
 int waitOffer = 0;                                   
 int buf_rssi_int = 0;
+//int buf_snr_int = 0;
 int bL = 0;
 int posXssi = 0;
 int posYssi = 0;
@@ -116,7 +121,7 @@ U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* 
 #define LED_PIN_INTERNAL    25
 #define LED_COUNT            3
 #define ADC_PIN             35
-#define CONV_FACTOR        1.8
+#define CONV_FACTOR        1.7
 #define READS               20
 #define loadWidth           50
 #define loadHeight          50
@@ -262,11 +267,12 @@ void sendMessage(String message) {
   LoRa.write(localAddress);             // add sender address
   LoRa.write(msgKey1);                  // add message KEY
   LoRa.write(msgKey2);                  // add message KEY
+  LoRa.write(byte_rssi);
+  //LoRa.write(byte_snr);
+  LoRa.write(byte_bL);
   LoRa.write(msgCount);                 // add message ID
   LoRa.write(message.length());         // add payload length
   LoRa.print(message);                  // add payload
-  //LoRa.print(reg_rssi);                 // add measured rssi
-  //LoRa.print(bL);                       // add measured battery level
   LoRa.endPacket();                     // finish packet and send it
   msgCount++;                           // increment message ID
 }
@@ -360,14 +366,23 @@ void printDisplay() {   // tx Transmit Message,  rx Receive Message,   txAdr Rec
   sprintf(buf_txAdr, "%s", tx_adr);
   sprintf(buf_lost, "%s", lost);
   sprintf(buf_rssi, "%s", reg_rssi);          //Register value string rssi convert into buffer char rssi
+  //sprintf(buf_snr, "%s", reg_snr);            //Register value string snr convert into buffer char snr
 
   buf_rssi_int = atoi(buf_rssi);              //Convert char rssi in int rssi
+  //buf_snr_int = atoi(buf_snr);                //Convert char snr in int snr
   
+  byte_rssi = buf_rssi_int;                   //Transmit Snr and Rssi back to transmitter
+  //byte_snr = buf_snr_int;
+
+
 if ((millis() - lastGetBattery > 10000) || (initBattery == LOW)) {
     bV = BL.getBatteryVolts();
     bL = BL.getBatteryChargeLevel();
     snprintf(buf_bV, 5, "%f", bV);
     snprintf(buf_bL, 4, "%d", bL);
+
+    byte_bL = bL;
+
     initBattery = HIGH;
     lastGetBattery = millis();
   }
@@ -609,6 +624,8 @@ void setup() {
   u8g2.begin();
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_6x10_tf);
+  u8g2.setContrast(1);                  // value from 1 to 255
+  //u8g2.setFlipMode(1);
 
   strip.begin();    
   strip.setBrightness(defaultBrightness);    
@@ -707,7 +724,8 @@ void loop() {
       mode_s = "off";
       reg_incoming = incoming;
       reg_tx_adr = tx_adr;
-      reg_rssi = rssi;  
+      reg_rssi = rssi;
+      reg_snr = snr;
       printDisplay();
       emptyDisplay();
       break;
@@ -722,12 +740,20 @@ void loop() {
       reg_incoming = incoming;
       reg_tx_adr = tx_adr;
       reg_rssi = rssi;
+      reg_snr = snr;
       expiredControlTime = expiredControlTimeSync;  // After the first con Message, the time for offline status is reduced 
       lastControlTime = millis();
       printDisplay();
       emptyDisplay();
       break;
     }
+
+    // Function Print Display if nothing work
+    if (millis() - lastDisplayPrint > 10000) {
+      emptyDisplay();
+      printDisplay();
+    }
+
 
   }
 
@@ -856,6 +882,7 @@ void loop() {
       reg_incoming = incoming;
       reg_tx_adr = tx_adr;
       reg_rssi = rssi;  
+      reg_snr = snr;
       expiredControlTime = expiredControlTimeSync;  // After the first con Message, the time for offline status is reduced
       lastControlTime = millis();
       printDisplay();
@@ -913,7 +940,7 @@ void loop() {
     }
 
     // Function Print Display if nothing work
-    if (millis() - lastDisplayPrint > 5000) {
+    if (millis() - lastDisplayPrint > 10000) {
       emptyDisplay();
       printDisplay();
     }
