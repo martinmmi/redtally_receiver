@@ -64,8 +64,8 @@ char buf_rssi[4];
 ///////////////////////////////////////////////
 ////////// CHANGE for each Receiver ///////////
 
-byte localAddress = 0xcc;                 // Address of this device   
-String string_localAddress = "cc";                                    
+byte localAddress = 0xbb;                 // Address of this device   
+String string_localAddress = "bb";                                    
 byte destination = 0xaa;                  // Destination to send to              
 String string_destinationAddress = "aa";          
 
@@ -78,6 +78,7 @@ byte msgCount = 0;                        // Count of outgoing messages
 byte byte_rssi;
 //byte byte_snr;
 byte byte_bL;
+byte esm;
 
 long lastOfferTime = 0;                   // Last send time
 long lastAcknowledgeTime = 0;
@@ -93,7 +94,9 @@ long lastDiscoverTime = 0;    // Last send time
 
 int expiredControlTime = 480000;      // 8 minutes waiting for control signal, then turn offline
 int expiredControlTimeSync = 0;       // New Value, if the first con signal is received + 10s Transition Waiting
-int defaultBrightness = 200;
+int timeToWakeUp = 0;
+int defaultBrightnessDisplay = 150;   // value from 1 to 255
+int defaultBrightnessLed = 200;       // value from 1 to 255
 int waitOffer = 0;                                   
 int buf_rssi_int = 0;
 //int buf_snr_int = 0;
@@ -119,6 +122,7 @@ bool goOff = LOW;
 bool initBattery = LOW;
 bool batteryAttention = LOW;
 bool batteryAttentionState = LOW;
+bool ledInternalOn = HIGH;
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 22, /* data=*/ 21);   // ESP32 Thing, HW I2C with pin remapping
 
@@ -127,7 +131,7 @@ U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* 
 #define LED_PIN_INTERNAL    25
 #define LED_COUNT            3
 #define ADC_PIN             35
-#define CONV_FACTOR        1.7
+#define CONV_FACTOR       1.75      //1.7 is fine for the right voltage
 #define READS               20
 #define loadWidth           50
 #define loadHeight          50
@@ -285,7 +289,7 @@ void sendMessage(String message) {
 
 //////////////////////////////////////////////////////////////////////
 
-void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, String *ptr_incoming, String *ptr_rssi, String *ptr_snr) {
+void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr_esm, String *ptr_incoming, String *ptr_rssi, String *ptr_snr) {
   if (packetSize == 0) return;          // if there's no packet, return
 
   //Clear the variables
@@ -308,21 +312,12 @@ void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, String *p
   byte sender = LoRa.read();            // sender address
   byte incomingMsgKey1 = LoRa.read();   // incoming msg KEY1
   byte incomingMsgKey2 = LoRa.read();   // incoming msg KEY2
+  byte incomingEsm = LoRa.read();       // incoming energie save mode
   byte incomingMsgId = LoRa.read();     // incoming msg ID
   byte incomingLength = LoRa.read();    // incoming msg length
 
   while (LoRa.available()) {
     incoming += (char)LoRa.read();
-  }
-
-  if (incomingMsgKey1 != msgKey1 && incomingMsgKey2 != msgKey2) {
-    Serial.println("Error: Message key is false.");
-    return;                             // skip rest of function
-  }
-
-  if (incomingLength != incoming.length()) {   // check length for error
-    Serial.println("Error: Message length does not match length.");
-    return;                             // skip rest of function
   }
 
   // if the recipient isn't this device or broadcast,
@@ -331,8 +326,19 @@ void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, String *p
     return;                             // skip rest of function
   }
 
+  if ((incomingMsgKey1 != msgKey1 && incomingMsgKey2 != msgKey2) && (recipient == localAddress || recipient == 0xff)) {
+    Serial.println("Error: Message key is false.");
+    return;                             // skip rest of function
+  }
+
+  if ((incomingLength != incoming.length()) && (recipient == localAddress || recipient == 0xff)) {   // check length for error
+    Serial.println("Error: Message length does not match length.");
+    return;                             // skip rest of function
+  }
+
   *ptr_rx_adr = String(recipient, HEX);
   *ptr_tx_adr = String(sender, HEX);
+  *ptr_esm = incomingEsm;
   *ptr_incoming = incoming;
   *ptr_rssi = String(LoRa.packetRssi());
   *ptr_snr = String(LoRa.packetSnr());
@@ -574,6 +580,7 @@ void intTallys() {
   if (string_localAddress == "bb") {
     waitOffer = random(500) + 1500;
     expiredControlTimeSync = 210000;   
+    timeToWakeUp = 150000;
     posXssi = 8;
     posYssi = 46;
     posXrssi = 0;
@@ -585,7 +592,8 @@ void intTallys() {
   }
   if (string_localAddress == "cc") {
     waitOffer = random(500) + 3000;
-    expiredControlTimeSync = 220000;  
+    expiredControlTimeSync = 220000; 
+    timeToWakeUp = 160000; 
     posXssi = 40;
     posYssi = 46;
     posXrssi = 32;
@@ -598,6 +606,7 @@ void intTallys() {
   if (string_localAddress == "dd") {
     waitOffer = random(500) + 4500;
     expiredControlTimeSync = 230000;
+    timeToWakeUp = 170000; 
     posXssi = 72;
     posYssi = 46;
     posXrssi = 64;
@@ -610,6 +619,7 @@ void intTallys() {
   if (string_localAddress == "ee") {
     waitOffer = random(500) + 6000;
     expiredControlTimeSync = 240000;
+    timeToWakeUp = 180000; 
     posXssi = 104;
     posYssi = 46;
     posXrssi = 96;
@@ -640,11 +650,11 @@ void setup() {
   u8g2.begin();
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_6x10_tf);
-  u8g2.setContrast(1);                  // value from 1 to 255
+  u8g2.setContrast(defaultBrightnessDisplay);                  
   //u8g2.setFlipMode(1);
 
   strip.begin();    
-  strip.setBrightness(defaultBrightness);    
+  strip.setBrightness(defaultBrightnessLed);    
   strip.show();
 
   //        Color, Delay, Runs
@@ -728,7 +738,7 @@ void loop() {
 
   // Discover Mode
   while (mode == "discover") {
-    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &incoming, &rssi, &snr);    // Parse Packets and Read it
+    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &esm, &incoming, &rssi, &snr);    // Parse Packets and Read it
 
     tallyBlinkSlow(yellow);
 
@@ -750,7 +760,6 @@ void loop() {
     //Routine for rediscover receivers, which lost signal, empty battery or switched off
     if ((incoming == "con-rec?") && (tx_adr == "aa")) {
       Serial.println("RxD: " + incoming);
-      Serial.println("con-yeah!");
       mode = "control";
       mode_s = "con";
       reg_incoming = incoming;
@@ -769,15 +778,13 @@ void loop() {
       emptyDisplay();
       printDisplay();
     }
-
-
   }
 
   // Offer Mode
   if (mode == "offer") {
     tallyBlinkFast(yellow);
     if (millis() - lastOfferTime > waitOffer) {  
-      digitalWrite(LED_PIN_INTERNAL, HIGH);
+      if (ledInternalOn == HIGH) {digitalWrite(LED_PIN_INTERNAL, HIGH);}
       destination = 0xaa;
       string_destinationAddress = "aa"; 
       outgoing = "off";                            
@@ -796,7 +803,7 @@ void loop() {
 
   // Request Mode
   while (mode == "request") {
-    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &incoming, &rssi, &snr);    // Parse Packets and Read it
+    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &esm, &incoming, &rssi, &snr);    // Parse Packets and Read it
 
     if ((incoming == "req-high") && (rx_adr == "bb") && (connected == HIGH)) {
       Serial.println("RxD: " + incoming);
@@ -956,16 +963,23 @@ void loop() {
     }
 
     // Function Print Display if nothing work
-    if (millis() - lastDisplayPrint > 10000) {
+    if ((millis() - lastDisplayPrint > 10000)) {
       emptyDisplay();
       printDisplay();
+    }
+
+    // Function to turn on the Display and led internal after energy saving time
+    if ((millis() - lastExpiredControlTime > timeToWakeUp)) {
+      ledInternalOn = HIGH;
+      u8g2.setContrast(defaultBrightnessDisplay);  
+      u8g2.sendBuffer();
     }
 
   }
 
   // Acknowledge Mode
   if ((mode == "acknowledge") && (millis() - lastAcknowledgeTime > random(150) + 150)) {
-    digitalWrite(LED_PIN_INTERNAL, HIGH);
+    if (ledInternalOn == HIGH) {digitalWrite(LED_PIN_INTERNAL, HIGH);}
     destination = 0xaa;
     string_destinationAddress = "aa"; 
     outgoing = "ack";              
@@ -980,7 +994,7 @@ void loop() {
 
   // Control Mode
   if ((mode == "control") && (millis() - lastControlTime > random(150) + 150)) {
-    digitalWrite(LED_PIN_INTERNAL, HIGH);
+    if (ledInternalOn == HIGH) {digitalWrite(LED_PIN_INTERNAL, HIGH);}
     destination = 0xaa;
     string_destinationAddress = "aa"; 
     outgoing = "con";
@@ -999,6 +1013,15 @@ void loop() {
     mode = "request";
     mode_s = "req";
     emptyDisplay();
+
+    if (esm == 0x01) {
+      Serial.println("SLEEP!");
+      ledInternalOn = LOW;
+      u8g2.setContrast(0);
+      u8g2.sendBuffer();
+      esp_sleep_enable_timer_wakeup(timeToWakeUp * 1000000);
+      esp_light_sleep_start();
+    }
   }
 
 }
