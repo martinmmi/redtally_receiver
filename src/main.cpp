@@ -64,8 +64,8 @@ char buf_rssi[4];
 ///////////////////////////////////////////////
 ////////// CHANGE for each Receiver ///////////
 
-byte localAddress = 0xbb;                 // Address of this device   
-String string_localAddress = "bb";                                    
+byte localAddress = 0xcc;                 // Address of this device   
+String string_localAddress = "cc";                                    
 byte destination = 0xaa;                  // Destination to send to              
 String string_destinationAddress = "aa";          
 
@@ -122,7 +122,6 @@ bool goOff = LOW;
 bool initBattery = LOW;
 bool batteryAttention = LOW;
 bool batteryAttentionState = LOW;
-bool ledInternalOn = HIGH;
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 22, /* data=*/ 21);   // ESP32 Thing, HW I2C with pin remapping
 
@@ -635,7 +634,7 @@ void intTallys() {
 
 void setup() {
 
-  setCpuFrequencyMhz(80);               // Set CPU Frequenz 240, 160, 80, 40, 20, 10 Mhz
+  //setCpuFrequencyMhz(80);               // Set CPU Frequenz 240, 160, 80, 40, 20, 10 Mhz
   
   cpu_frequency = getCpuFrequencyMhz();
   xtal_frequency = getXtalFrequencyMhz();
@@ -784,7 +783,7 @@ void loop() {
   if (mode == "offer") {
     tallyBlinkFast(yellow);
     if (millis() - lastOfferTime > waitOffer) {  
-      if (ledInternalOn == HIGH) {digitalWrite(LED_PIN_INTERNAL, HIGH);}
+      digitalWrite(LED_PIN_INTERNAL, HIGH);
       destination = 0xaa;
       string_destinationAddress = "aa"; 
       outgoing = "off";                            
@@ -970,7 +969,6 @@ void loop() {
 
     // Function to turn on the Display and led internal after energy saving time
     if ((millis() - lastExpiredControlTime > timeToWakeUp)) {
-      ledInternalOn = HIGH;
       u8g2.setContrast(defaultBrightnessDisplay);  
       u8g2.sendBuffer();
     }
@@ -979,7 +977,7 @@ void loop() {
 
   // Acknowledge Mode
   if ((mode == "acknowledge") && (millis() - lastAcknowledgeTime > random(150) + 150)) {
-    if (ledInternalOn == HIGH) {digitalWrite(LED_PIN_INTERNAL, HIGH);}
+    digitalWrite(LED_PIN_INTERNAL, HIGH);
     destination = 0xaa;
     string_destinationAddress = "aa"; 
     outgoing = "ack";              
@@ -994,7 +992,7 @@ void loop() {
 
   // Control Mode
   if ((mode == "control") && (millis() - lastControlTime > random(150) + 150)) {
-    if (ledInternalOn == HIGH) {digitalWrite(LED_PIN_INTERNAL, HIGH);}
+    digitalWrite(LED_PIN_INTERNAL, HIGH);
     destination = 0xaa;
     string_destinationAddress = "aa"; 
     outgoing = "con";
@@ -1016,7 +1014,6 @@ void loop() {
 
     if (esm == 0x01) {
       Serial.println("SLEEP!");
-      ledInternalOn = LOW;
       u8g2.setContrast(0);
       u8g2.sendBuffer();
       esp_sleep_enable_timer_wakeup(timeToWakeUp * 1000000);
