@@ -64,8 +64,8 @@ char buf_rssi[4];
 ///////////////////////////////////////////////
 ////////// CHANGE for each Receiver ///////////
 
-byte localAddress = 0xbb;                 // Address of this device   
-String string_localAddress = "bb";                                    
+byte localAddress = 0xcc;                 // Address of this device   
+String string_localAddress = "cc";                                    
 byte destination = 0xaa;                  // Destination to send to              
 String string_destinationAddress = "aa";          
 
@@ -635,7 +635,7 @@ void intTallys() {
 
 void setup() {
 
-  //setCpuFrequencyMhz(80);               // Set CPU Frequenz 240, 160, 80, 40, 20, 10 Mhz
+  setCpuFrequencyMhz(80);               // Set CPU Frequenz 240, 160, 80, 40, 20, 10 Mhz
   
   cpu_frequency = getCpuFrequencyMhz();
   xtal_frequency = getXtalFrequencyMhz();
@@ -922,6 +922,8 @@ void loop() {
       relai(LOW);
       tally(nocolor);
       lastDiscoverTime = millis();
+      lastExpiredControlTime = millis();
+      expired = LOW;
       printDisplay();
       emptyDisplay();
       break;
