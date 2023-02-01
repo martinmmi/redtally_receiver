@@ -64,8 +64,8 @@ char buf_rssi[4];
 ///////////////////////////////////////////////
 ////////// CHANGE for each Receiver ///////////
 
-byte localAddress = 0xcc;                 // Address of this device   
-String string_localAddress = "cc";                                    
+byte localAddress = 0xdd;                 // Address of this device   
+String string_localAddress = "dd";                                    
 byte destination = 0xaa;                  // Destination to send to              
 String string_destinationAddress = "aa";          
 
@@ -122,6 +122,7 @@ bool goOff = LOW;
 bool initBattery = LOW;
 bool batteryAttention = LOW;
 bool batteryAttentionState = LOW;
+bool expired = LOW;
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 22, /* data=*/ 21);   // ESP32 Thing, HW I2C with pin remapping
 
@@ -946,11 +947,12 @@ void loop() {
       initSuccess2 = HIGH;
     }
 
-    if ((millis() - lastExpiredControlTime > expiredControlTime)) {           // Status Sync expired
+    if ((millis() - lastExpiredControlTime > expiredControlTime) && (expired == LOW)) {           // Status Sync expired
       tally(yellow);
       relai(LOW);
       connectedState = HIGH;
       connected = LOW;
+      expired = HIGH;
       printDisplay();
     }
 
@@ -1001,6 +1003,7 @@ void loop() {
     Serial.println("TxD: " + outgoing);
     digitalWrite(LED_PIN_INTERNAL, LOW);
     lastExpiredControlTime = millis();
+    expired = LOW;
 
     if ((connectedState == HIGH) && (connected = LOW)) {
       tally(nocolor);
