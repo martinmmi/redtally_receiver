@@ -64,8 +64,8 @@ char buf_rssi[4];
 ///////////////////////////////////////////////
 ////////// CHANGE for each Receiver ///////////
 
-byte localAddress = 0xdd;                 // Address of this device   
-String string_localAddress = "dd";                                    
+byte localAddress = 0xbb;                 // Address of this device   
+String string_localAddress = "bb";                                    
 byte destination = 0xaa;                  // Destination to send to              
 String string_destinationAddress = "aa";          
 
@@ -89,7 +89,6 @@ long lastGetBattery = 0;
 long lastExpiredControlTime = 0;
 long lastTestTime = 0;
 long lastDisplayPrint = 0;
-long lastEmpty = 0;
 long lastDiscoverTime = 0;    // Last send time
 
 int expiredControlTime = 480000;      // 8 minutes waiting for control signal, then turn offline
@@ -123,6 +122,7 @@ bool initBattery = LOW;
 bool batteryAttention = LOW;
 bool batteryAttentionState = LOW;
 bool expired = LOW;
+bool emptyAfterOffer = LOW;
 
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 22, /* data=*/ 21);   // ESP32 Thing, HW I2C with pin remapping
 
@@ -579,7 +579,7 @@ void relai(bool state) {
 void intTallys() {
   if (string_localAddress == "bb") {
     waitOffer = random(500) + 1500;
-    expiredControlTimeSync = 210000;   
+    expiredControlTimeSync = 370000;   //6 Minutes + 10 Secounds Backup if signal turn off
     timeToWakeUp = 150000;
     posXssi = 8;
     posYssi = 46;
@@ -592,7 +592,7 @@ void intTallys() {
   }
   if (string_localAddress == "cc") {
     waitOffer = random(500) + 3000;
-    expiredControlTimeSync = 220000; 
+    expiredControlTimeSync = 400000;   //6,5 Minutes + 10 Secounds Backup if signal turn off
     timeToWakeUp = 160000; 
     posXssi = 40;
     posYssi = 46;
@@ -605,7 +605,7 @@ void intTallys() {
   }
   if (string_localAddress == "dd") {
     waitOffer = random(500) + 4500;
-    expiredControlTimeSync = 230000;
+    expiredControlTimeSync = 430000;   //7 Minutes + 10 Secounds Backup if signal turn off
     timeToWakeUp = 170000; 
     posXssi = 72;
     posYssi = 46;
@@ -618,7 +618,7 @@ void intTallys() {
   }
   if (string_localAddress == "ee") {
     waitOffer = random(500) + 6000;
-    expiredControlTimeSync = 240000;
+    expiredControlTimeSync = 460000;    //7,5 Minutes + 10 Secounds Backup if signal turn off
     timeToWakeUp = 180000; 
     posXssi = 104;
     posYssi = 46;
@@ -797,7 +797,6 @@ void loop() {
       mode_s = "req";
       printDisplay();
       emptyDisplay();
-      lastEmpty = millis();
     }
   }
 
@@ -928,12 +927,14 @@ void loop() {
       break;
     }
 
-    if ((millis() - lastEmpty) > 2500) {
+    // Clear Display after Offer Mode
+    if (emptyAfterOffer == LOW) {
       emptyDisplay();
       printDisplay();
-      lastEmpty = millis();
+      emptyAfterOffer = HIGH;
     }
 
+    // Only one time Access after Init
     if (initSuccess == LOW) {
       tally(yellow);
       lastDiscoverTime = millis();
@@ -942,12 +943,14 @@ void loop() {
       initSuccess = HIGH;
     }
 
+    // Turn off led after Init
     if ((initSuccess2 == LOW) && (millis() - lastInitSuccess > 2000)) {
       tally(nocolor);
       initSuccess2 = HIGH;
     }
 
-    if ((millis() - lastExpiredControlTime > expiredControlTime) && (expired == LOW)) {           // Status Sync expired
+    // Status Sync expired
+    if ((millis() - lastExpiredControlTime > expiredControlTime) && (expired == LOW)) {           
       tally(yellow);
       relai(LOW);
       connectedState = HIGH;
@@ -956,6 +959,7 @@ void loop() {
       printDisplay();
     }
 
+    //After Reconnet, set tally high
     if ((connected == HIGH) && (connectedState == HIGH)) {           
       tally(nocolor);
       connectedState = LOW;
@@ -970,7 +974,7 @@ void loop() {
     }
 
     // Function to turn on the Display and led internal after energy saving time
-    if ((millis() - lastExpiredControlTime > timeToWakeUp)) {
+    if ((millis() - lastExpiredControlTime > timeToWakeUp) && (esm == 0x01)) {
       u8g2.setContrast(defaultBrightnessDisplay);  
       u8g2.sendBuffer();
     }
