@@ -64,8 +64,8 @@ char buf_rssi[4];
 ///////////////////////////////////////////////
 ////////// CHANGE for each Receiver ///////////
 
-byte localAddress = 0xcc;                 // Address of this device   
-String string_localAddress = "cc";                                    
+byte localAddress = 0xbb;                 // Address of this device   
+String string_localAddress = "bb";                                    
 byte destination = 0xaa;                  // Destination to send to              
 String string_destinationAddress = "aa";          
 
@@ -95,7 +95,7 @@ int expiredControlTime = 480000;      // 8 minutes waiting for control signal, t
 int expiredControlTimeSync = 0;       // New Value, if the first con signal is received + 10s Transition Waiting
 int timeToWakeUp = 0;
 int defaultBrightnessDisplay = 150;   // value from 1 to 255
-int defaultBrightnessLed = 200;       // value from 1 to 255
+int defaultBrightnessLed = 255;       // value from 1 to 255
 int waitOffer = 0;                                   
 int buf_rssi_int = 0;
 //int buf_snr_int = 0;
@@ -131,7 +131,7 @@ U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE, /* 
 #define LED_PIN_INTERNAL    25
 #define LED_COUNT            3
 #define ADC_PIN             35
-#define CONV_FACTOR       1.75      //1.7 is fine for the right voltage
+#define CONV_FACTOR        1.8      //1.7 is fine for the right voltage
 #define READS               20
 #define loadWidth           50
 #define loadHeight          50
