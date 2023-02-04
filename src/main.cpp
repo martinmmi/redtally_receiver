@@ -80,16 +80,16 @@ byte byte_rssi;
 byte byte_bL;
 byte esm;
 
-long lastOfferTime = 0;                   // Last send time
-long lastAcknowledgeTime = 0;
-long lastControlTime = 0;
-long lastClockTime = 0;
-long lastInitSuccess = 0;
-long lastGetBattery = 0;
-long lastExpiredControlTime = 0;
-long lastTestTime = 0;
-long lastDisplayPrint = 0;
-long lastDiscoverTime = 0;    // Last send time
+unsigned long lastOfferTime = 0;                   // Last send time
+unsigned long lastAcknowledgeTime = 0;
+unsigned long lastControlTime = 0;
+unsigned long lastClockTime = 0;
+unsigned long lastInitSuccess = 0;
+unsigned long lastGetBattery = 0;
+unsigned long lastExpiredControlTime = 0;
+unsigned long lastTestTime = 0;
+unsigned long lastDisplayPrint = 0;
+unsigned long lastDiscoverTime = 0;    // Last send time
 
 int expiredControlTime = 480000;      // 8 minutes waiting for control signal, then turn offline
 int expiredControlTimeSync = 0;       // New Value, if the first con signal is received + 10s Transition Waiting
