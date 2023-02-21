@@ -58,13 +58,15 @@ char buf_rssi[4];
 //char buf_snr[3];
 
 ///////////////////////////////////////////////
-////////// CHANGE for each Receiver ///////////
+/////////// Setup Receiver Values /////////////
+///////////////////////////////////////////////
 
 byte localAddress = 0xbb;                 // Address of this device   
 String string_localAddress = "bb";                                    
 byte destination = 0xaa;                  // Destination to send to              
 String string_destinationAddress = "aa";          
 
+///////////////////////////////////////////////
 ///////////////////////////////////////////////
 ///////////////////////////////////////////////
 
@@ -104,6 +106,22 @@ int posXnumb = 0;
 int posYnumb = 0;
 int posXlost = 0;
 int posYlost = 0;
+
+///////////////////////////////////////////////
+//////////// Setup LORA Values ////////////////
+///////////////////////////////////////////////
+
+int loraTxPower = 17;                   //2-20 default 17
+int loraSpreadingFactor = 7;            //6-12 default  7
+double loraSignalBandwidth = 125E3;     //7.8E3, 10.4E3, 15.6E3, 20.8E3, 31.25E3, 41.7E3, 62.5E3, 125E3, 250E3, and 500E3 default 125E3
+int loraCodingRate = 5;                 //5-8 default 5
+int loraPreambleLength = 8;             //6-65535 default 8
+double loraFrequenz = 868E6;            //set Frequenz 915E6 or 868E6
+
+///////////////////////////////////////////////
+///////////////////////////////////////////////
+///////////////////////////////////////////////
+
 double bV = 0;
 
 bool clkState;
@@ -164,6 +182,8 @@ uint32_t blue = strip.Color(0, 0, 255);
 uint32_t yellow = strip.Color(255, 50, 0);
 uint32_t nocolor = strip.Color(0, 0, 0);
 
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
 void printLogo(int color, int wait) {
@@ -278,6 +298,8 @@ void printLora(int color) {
 }
 
 //////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 
 void sendMessage(String message) {
   LoRa.beginPacket();                   // start packet
@@ -295,6 +317,8 @@ void sendMessage(String message) {
   msgCount++;                           // increment message ID
 }
 
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
 void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr_esm, String *ptr_incoming, String *ptr_rssi, String *ptr_snr) {
@@ -356,6 +380,8 @@ void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr
 }
 
 //////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 
 void emptyDisplay() {
 
@@ -372,6 +398,8 @@ void emptyDisplay() {
 
 }
 
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
 void printDisplay() {   // tx Transmit Message,  rx Receive Message,   txAdr Receive Address
@@ -518,9 +546,9 @@ if ((millis() - lastGetBattery > 10000) || (initBattery == LOW)) {
   //Serial.print("Voltage: "); Serial.print(bV); Serial.println(" V");
   //Serial.print("Voltage Level: "); Serial.print(bL); Serial.println(" %");
   //Serial.print("TxD Adr: "); Serial.println(string_destinationAddress);
-  //Serial.print("TxD: "); Serial.println(outgoing);
+  //Serial.print("LORA TxD: "); Serial.println(outgoing);
   //Serial.print("RxD Adr: "); Serial.println(tx_adr);
-  //Serial.print("RxD: "); Serial.println(incoming);
+  //Serial.print("LORA RxD: "); Serial.println(incoming);
   //Serial.print("Rssi: "); Serial.println(buf_rssi_int);
   //Serial.print("LastDiscoverTime: "); Serial.println(lastDiscoverTime);
   //Serial.print("Connected: "); Serial.println(connected);
@@ -533,6 +561,8 @@ if ((millis() - lastGetBattery > 10000) || (initBattery == LOW)) {
   lastDisplayPrint = millis();
 }
 
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
 void tally(uint32_t color) {
@@ -582,6 +612,8 @@ void relai(bool state) {
   digitalWrite(RELAI_PIN, state);
 }
 
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
 void intTallys() {
@@ -640,6 +672,8 @@ void intTallys() {
 }
 
 //////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 
 void setup() {
 
@@ -697,16 +731,15 @@ void setup() {
   u8g2.sendBuffer();
   delay(300);
 
-  // override the default CS, reset, and IRQ pins (optional)
-  LoRa.setPins(LORA_CS, LORA_RST, LORA_IRQ); // set CS, reset, IRQ pin
-  LoRa.setTxPower(17);  //2-20 default 17
-  LoRa.setSpreadingFactor(7);    //6-12 default 7
-  LoRa.setSignalBandwidth(125E3);   //7.8E3, 10.4E3, 15.6E3, 20.8E3, 31.25E3, 41.7E3, 62.5E3, 125E3, 250E3, and 500E3 default 125E3
-  LoRa.setCodingRate4(5);   //5-8 default 5
-  LoRa.setPreambleLength(8);    //6-65535 default 8
-  LoRa.begin(868E6);  //set Frequenz 915E6 or 868E6
+  LoRa.setPins(LORA_CS, LORA_RST, LORA_IRQ);
+  LoRa.setTxPower(loraTxPower);
+  LoRa.setSpreadingFactor(loraSpreadingFactor);    
+  LoRa.setSignalBandwidth(loraSignalBandwidth);
+  LoRa.setCodingRate4(loraCodingRate);
+  LoRa.setPreambleLength(loraPreambleLength);
+  LoRa.begin(loraFrequenz);
 
-  if (!LoRa.begin(868E6)) {             // initialize ratio at 868 MHz
+  if (!LoRa.begin(loraFrequenz)) {             // initialize ratio at 868 MHz
     Serial.println("LoRa init failed. Check your connections.");
     loraInit = "LoRa failed";
     sprintf(buf_loraInit, "%s", loraInit);   
@@ -743,6 +776,8 @@ void setup() {
 }
 
 //////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 
 void loop() {
 
@@ -754,7 +789,7 @@ void loop() {
 
     //Routine for discover new receivers at the start
     if ((incoming == "dis-anyrec?") && (tx_adr == "aa") && (rx_adr == "ff")) {
-      Serial.println("RxD: " + incoming);
+      Serial.println("LORA RxD: " + incoming);
       lastOfferTime = millis();
       mode = "offer";
       mode_s = "off";
@@ -769,7 +804,7 @@ void loop() {
     
     //Routine for rediscover receivers, which lost signal, empty battery or switched off
     if ((incoming == "con-rec?") && (tx_adr == "aa")) {
-      Serial.println("RxD: " + incoming);
+      Serial.println("LORA RxD: " + incoming);
       mode = "control";
       mode_s = "con";
       reg_incoming = incoming;
@@ -799,7 +834,7 @@ void loop() {
       string_destinationAddress = "aa"; 
       outgoing = "off";                            
       sendMessage(outgoing);                                    // Send a message      
-      Serial.println("TxD: " + outgoing);
+      Serial.println("LORA TxD: " + outgoing);
       digitalWrite(LED_PIN_INTERNAL, LOW);
       connected = HIGH;
       connectedInit = HIGH;
@@ -815,7 +850,7 @@ void loop() {
     onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &esm, &incoming, &rssi, &snr);    // Parse Packets and Read it
 
     if ((incoming == "req-high") && (rx_adr == "bb") && (connected == HIGH)) {
-      Serial.println("RxD: " + incoming);
+      Serial.println("LORA RxD: " + incoming);
       tally(red);
       relai(HIGH);
       mode = "acknowledge";
@@ -826,7 +861,7 @@ void loop() {
       break;
     }
     if ((incoming == "req-low") && (rx_adr == "bb") && (connected == HIGH)) {
-      Serial.println("RxD: " + incoming);
+      Serial.println("LORA RxD: " + incoming);
       tally(nocolor);
       relai(LOW);
       mode = "acknowledge";
@@ -838,7 +873,7 @@ void loop() {
     }
 
     if ((incoming == "req-high") && (rx_adr == "cc") && (connected == HIGH)) {
-      Serial.println("RxD: " + incoming);
+      Serial.println("LORA RxD: " + incoming);
       tally(red);
       relai(HIGH);
       mode = "acknowledge";
@@ -849,7 +884,7 @@ void loop() {
       break;
     }
     if ((incoming == "req-low") && (rx_adr == "cc") && (connected == HIGH)) {
-      Serial.println("RxD: " + incoming);
+      Serial.println("LORA RxD: " + incoming);
       tally(nocolor);
       relai(LOW);
       mode = "acknowledge";
@@ -861,7 +896,7 @@ void loop() {
     }
 
     if ((incoming == "req-high") && (rx_adr == "dd") && (connected == HIGH)) {
-      Serial.println("RxD: " + incoming);
+      Serial.println("LORA RxD: " + incoming);
       tally(red);
       relai(HIGH);
       mode = "acknowledge";
@@ -872,7 +907,7 @@ void loop() {
       break;
     }
     if ((incoming == "req-low") && (rx_adr == "dd") && (connected == HIGH)) {
-      Serial.println("RxD: " + incoming);
+      Serial.println("LORA RxD: " + incoming);
       tally(nocolor);
       relai(LOW);
       mode = "acknowledge";
@@ -884,7 +919,7 @@ void loop() {
     }
 
     if ((incoming == "req-high") && (rx_adr == "ee") && (connected == HIGH)) {
-      Serial.println("RxD: " + incoming);
+      Serial.println("LORA RxD: " + incoming);
       tally(red);
       relai(HIGH);
       mode = "acknowledge";
@@ -895,7 +930,7 @@ void loop() {
       break;
     }
     if ((incoming == "req-low") && (rx_adr == "ee") && (connected == HIGH)) {
-      Serial.println("RxD: " + incoming);
+      Serial.println("LORA RxD: " + incoming);
       tally(nocolor);
       relai(LOW);
       mode = "acknowledge";
@@ -908,7 +943,7 @@ void loop() {
     
     //Routine for Control Online Status
     if ((incoming == "con-rec?") && (tx_adr == "aa")) {
-      Serial.println("RxD: " + incoming);
+      Serial.println("LORA RxD: " + incoming);
       mode = "control";
       mode_s = "con";
       reg_incoming = incoming;
@@ -924,7 +959,7 @@ void loop() {
 
     //Routine for Base Reset after 10 Minutes On-Time
     if ((incoming == "dis-anyrec?") && (tx_adr == "aa") && (rx_adr == "ff") && (initSuccess == HIGH) && (millis() - lastDiscoverTime > 600000)) {
-      Serial.println("RxD: " + incoming);
+      Serial.println("LORA RxD: " + incoming);
       mode = "discover";
       mode_s = "dis";
       initSuccess = LOW;
@@ -1001,7 +1036,7 @@ void loop() {
     outgoing = "ack";              
     sendMessage(outgoing);                                    // Send a message      
     printDisplay();
-    Serial.println("TxD: " + outgoing);
+    Serial.println("LORA TxD: " + outgoing);
     digitalWrite(LED_PIN_INTERNAL, LOW);
     mode = "request";
     mode_s = "req";
@@ -1016,7 +1051,7 @@ void loop() {
     outgoing = "con";
     sendMessage(outgoing);                                    // Send a message     
     printDisplay();
-    Serial.println("TxD: " + outgoing);
+    Serial.println("LORA TxD: " + outgoing);
     digitalWrite(LED_PIN_INTERNAL, LOW);
     lastExpiredControlTime = millis();
     expired = LOW;
@@ -1042,6 +1077,8 @@ void loop() {
 
 }
 
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
