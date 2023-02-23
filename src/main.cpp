@@ -144,7 +144,7 @@ bool emptyAfterOffer = LOW;
 
 #define LED_PIN_INTERNAL    25        //Accumulator Function Declaration
 #define ADC_PIN             35
-#define CONV_FACTOR        1.8        //1.7 is fine for the right voltage
+#define CONV_FACTOR       1.85        //1.7 is fine for the right voltage
 #define READS               20
 
 #define loadWidth           50        //Bitmap Declaration
