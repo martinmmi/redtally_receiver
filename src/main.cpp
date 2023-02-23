@@ -28,7 +28,7 @@ uint32_t apb_frequency = 0;
 String mode = "discover";
 String mode_s = "dis";
 String name = "REDTALLY Receiver";      // Device Name
-String version = "0.0a";                // Frimeware Version
+String version = "R0.01";                // Frimeware Version
 String lost = "x";
 String numb = "aa";
 String rx_adr, tx_adr, incoming, outgoing, rssi, snr;
