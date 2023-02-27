@@ -59,8 +59,8 @@ char buf_rssi[4];
 /////////// Setup Receiver Values /////////////
 ///////////////////////////////////////////////
 
-byte localAddress = 0xcc;                 // Address of this device   
-String string_localAddress = "cc";                                    
+byte localAddress = 0xbb;                 // Address of this device   
+String string_localAddress = "bb";                                    
 byte destination = 0xaa;                  // Destination to send to              
 String string_destinationAddress = "aa";          
 
@@ -688,24 +688,13 @@ void setup() {
 
   Serial.println("");
   Serial.println(name);
+  Serial.println("Version: " + version);
 
   u8g2.begin();
   u8g2.clearBuffer();
   u8g2.setFont(u8g2_font_6x10_tf);
   u8g2.setContrast(defaultBrightnessDisplay);                  
   //u8g2.setFlipMode(1);
-
-  if (u8g2.begin()) {
-    sprintf(buf_oledInit, "%s", "OLED init");
-    u8g2.drawStr(0,10,buf_oledInit);
-    u8g2.sendBuffer();
-    delay(300);
-  }else{
-    sprintf(buf_oledInit, "%s", "OLED init failed");
-    u8g2.drawStr(0,10,buf_oledInit);
-    u8g2.sendBuffer();
-    delay(300);
-  }
 
   strip.begin();    
   strip.setBrightness(defaultBrightnessLed);    
@@ -714,18 +703,21 @@ void setup() {
   //        Color, Delay, Runs
   printLogo(0, 50);
   delay(1000);
-
   printLoad(1, 60, 2);
-
   printLogo(0, 25);
   delay(500);
-
   printLoad(1, 60, 4);
+  delay(500);
 
-  Serial.println("Version: " + version);
   sprintf(buf_version, "%s", version);
   u8g2.drawStr(99,60,buf_version);
   u8g2.sendBuffer();
+
+  Serial.println("OLED init succeeded.");
+  sprintf(buf_oledInit, "%s", "OLED init");
+  u8g2.drawStr(0,10,buf_oledInit);
+  u8g2.sendBuffer();
+  delay(300);
 
   LoRa.setPins(LORA_CS, LORA_RST, LORA_IRQ);
   LoRa.setTxPower(loraTxPower);
@@ -740,7 +732,7 @@ void setup() {
       sprintf(buf_loraInit, "%s", "LORA failed");   
       u8g2.drawStr(0,20,buf_loraInit);
       u8g2.sendBuffer();
-      delay(300);
+      delay(1000);
       while (true);                       // if failed, do nothing
   }
   if (LoRa.begin(loraFrequenz)) {    
@@ -748,7 +740,7 @@ void setup() {
     sprintf(buf_loraInit, "%s", "LORA init");   
     u8g2.drawStr(0,20,buf_loraInit);
     u8g2.sendBuffer();
-    delay(300);
+    delay(1000);
   }
 
   pinMode(LED_PIN_INTERNAL, OUTPUT);
@@ -1010,7 +1002,7 @@ void loop() {
     }
 
     // Function to turn on the Display and led internal after energy saving time
-    if ((millis() - lastExpiredControlTime > timeToWakeUp) && (esm == 0x01)) {
+    if ((millis() - lastExpiredControlTime > timeToWakeUp)) {
       u8g2.setContrast(defaultBrightnessDisplay);  
       u8g2.sendBuffer();
     }
