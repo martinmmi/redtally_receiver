@@ -35,9 +35,7 @@ String rx_adr, tx_adr, incoming, outgoing, rssi, snr;
 String reg_incoming, reg_tx_adr, reg_rssi, reg_snr;
 
 String oledInit;
-String stripInit;
 String loraInit;
-String outputInit;
 
 char buf_tx[12];
 char buf_rx[12];
@@ -697,6 +695,18 @@ void setup() {
   u8g2.setContrast(defaultBrightnessDisplay);                  
   //u8g2.setFlipMode(1);
 
+  if (u8g2.begin()) {
+    sprintf(buf_oledInit, "%s", "OLED init");
+    u8g2.drawStr(0,10,buf_oledInit);
+    u8g2.sendBuffer();
+    delay(300);
+  }else{
+    sprintf(buf_oledInit, "%s", "OLED init failed");
+    u8g2.drawStr(0,10,buf_oledInit);
+    u8g2.sendBuffer();
+    delay(300);
+  }
+
   strip.begin();    
   strip.setBrightness(defaultBrightnessLed);    
   strip.show();
@@ -717,20 +727,6 @@ void setup() {
   u8g2.drawStr(99,60,buf_version);
   u8g2.sendBuffer();
 
-  Serial.println("OLED init succeeded.");
-  oledInit = "OLED init";
-  sprintf(buf_oledInit, "%s", oledInit);
-  u8g2.drawStr(0,15,buf_oledInit);
-  u8g2.sendBuffer();
-  delay(300);
-
-  Serial.println("Strip init succeeded.");
-  stripInit = "Strip init";
-  sprintf(buf_stripInit, "%s", stripInit);
-  u8g2.drawStr(0,25,buf_stripInit);
-  u8g2.sendBuffer();
-  delay(300);
-
   LoRa.setPins(LORA_CS, LORA_RST, LORA_IRQ);
   LoRa.setTxPower(loraTxPower);
   LoRa.setSpreadingFactor(loraSpreadingFactor);    
@@ -739,31 +735,24 @@ void setup() {
   LoRa.setPreambleLength(loraPreambleLength);
   LoRa.begin(loraFrequenz);
 
-  if (!LoRa.begin(loraFrequenz)) {             // initialize ratio at 868 MHz
-    Serial.println("LoRa init failed. Check your connections.");
-    loraInit = "LoRa failed";
-    sprintf(buf_loraInit, "%s", loraInit);   
-    u8g2.drawStr(0,35,buf_loraInit);
-    u8g2.sendBuffer();
-    while (true);                       // if failed, do nothing
+  if (!LoRa.begin(loraFrequenz)) {                                        // initialize lora frequenz
+      Serial.println("LORA init failed. Check your connections.");
+      sprintf(buf_loraInit, "%s", "LORA failed");   
+      u8g2.drawStr(0,20,buf_loraInit);
+      u8g2.sendBuffer();
+      delay(300);
+      while (true);                       // if failed, do nothing
   }
-
-  Serial.println("LoRa init succeeded.");
-  loraInit = "LoRa init";
-  sprintf(buf_loraInit, "%s", loraInit);   
-  u8g2.drawStr(0,35,buf_loraInit);
-  u8g2.sendBuffer();
-  delay(300);
+  if (LoRa.begin(loraFrequenz)) {    
+    Serial.println("LORA init succeeded.");
+    sprintf(buf_loraInit, "%s", "LORA init");   
+    u8g2.drawStr(0,20,buf_loraInit);
+    u8g2.sendBuffer();
+    delay(300);
+  }
 
   pinMode(LED_PIN_INTERNAL, OUTPUT);
   pinMode(RELAI_PIN, OUTPUT);
-
-  Serial.println("Outputs init succeeded.");
-  outputInit = "Outputs init";
-  sprintf(buf_outputInit, "%s", outputInit);   
-  u8g2.drawStr(0,45,buf_outputInit);
-  u8g2.sendBuffer();
-  delay(500);
 
   printLora(1);
   delay(2500);
