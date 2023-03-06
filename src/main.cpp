@@ -59,8 +59,8 @@ char buf_rssi[4];
 /////////// Setup Receiver Values /////////////
 ///////////////////////////////////////////////
 
-byte localAddress = 0xbb;                 // Address of this device   
-String string_localAddress = "bb";                                    
+byte localAddress = 0xcc;                 // Address of this device   
+String string_localAddress = "cc";                                    
 byte destination = 0xaa;                  // Destination to send to              
 String string_destinationAddress = "aa";          
 
@@ -75,6 +75,7 @@ byte byte_rssi;
 //byte byte_snr;
 byte byte_bL;
 byte esm;
+byte txpower;
 
 unsigned long lastOfferTime = 0;                   // Last send time
 unsigned long lastAcknowledgeTime = 0;
@@ -179,6 +180,8 @@ uint32_t green = strip.Color(0, 255, 0);
 uint32_t blue = strip.Color(0, 0, 255);
 uint32_t yellow = strip.Color(255, 50, 0);
 uint32_t nocolor = strip.Color(0, 0, 0);
+
+Preferences eeprom;            //Initiate Flash Memory
 
 //////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
@@ -319,7 +322,7 @@ void sendMessage(String message) {
 //////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
-void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr_esm, String *ptr_incoming, String *ptr_rssi, String *ptr_snr) {
+void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr_esm, byte *ptr_txpower, String *ptr_incoming, String *ptr_rssi, String *ptr_snr) {
   if (packetSize == 0) return;          // if there's no packet, return
 
   //Clear the variables
@@ -343,6 +346,7 @@ void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr
   byte incomingMsgKey1 = LoRa.read();   // incoming msg KEY1
   byte incomingMsgKey2 = LoRa.read();   // incoming msg KEY2
   byte incomingEsm = LoRa.read();       // incoming energie save mode
+  byte incomingTxPower = LoRa.read();   // incoming txpower
   byte incomingMsgId = LoRa.read();     // incoming msg ID
   byte incomingLength = LoRa.read();    // incoming msg length
 
@@ -369,6 +373,7 @@ void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr
   *ptr_rx_adr = String(recipient, HEX);
   *ptr_tx_adr = String(sender, HEX);
   *ptr_esm = incomingEsm;
+  *ptr_txpower = incomingTxPower;
   *ptr_incoming = incoming;
   *ptr_rssi = String(LoRa.packetRssi());
   *ptr_snr = String(LoRa.packetSnr());
@@ -684,6 +689,15 @@ void setup() {
   Serial.begin(115200);                   // initialize serial
   while (!Serial);
 
+//////////////////////////////////////////////////////////////////////
+
+  eeprom.begin("configuration", false); 
+  loraTxPower = eeprom.getInt("txpower", false); 
+  //Serial.print("loraTxPower: "); Serial.println(loraTxPower); 
+  eeprom.end();
+
+//////////////////////////////////////////////////////////////////////
+
   SPI.begin(LORA_SCLK, LORA_MISO, LORA_MOSI, LORA_CS);
 
   Serial.println("");
@@ -764,7 +778,7 @@ void loop() {
 
   // Discover Mode
   while (mode == "discover") {
-    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &esm, &incoming, &rssi, &snr);    // Parse Packets and Read it
+    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &esm, &txpower, &incoming, &rssi, &snr);    // Parse Packets and Read it
 
     tallyBlinkSlow(yellow);
 
@@ -828,7 +842,7 @@ void loop() {
 
   // Request Mode
   while (mode == "request") {
-    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &esm, &incoming, &rssi, &snr);    // Parse Packets and Read it
+    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &esm, &txpower, &incoming, &rssi, &snr);    // Parse Packets and Read it
 
     if ((incoming == "req-high") && (rx_adr == "bb") && (connected == HIGH)) {
       Serial.println("LORA RxD: " + incoming);
@@ -1053,6 +1067,16 @@ void loop() {
       u8g2.sendBuffer();
       esp_sleep_enable_timer_wakeup(timeToWakeUp * 1000000);
       esp_light_sleep_start();
+    }
+
+    if (loraTxPower != txpower) {
+      loraTxPower = txpower;
+      eeprom.begin("configuration", false);                //false mean use read/write mode
+      eeprom.putInt("txpower", loraTxPower);     
+      eeprom.end();
+      //Serial.print("loraTxPower: "); Serial.println(loraTxPower);
+      delay(2000);
+      ESP.restart();
     }
   }
 
