@@ -407,14 +407,14 @@ void emptyDisplay() {
 
 void printDisplay() {   // tx Transmit Message,  rx Receive Message,   txAdr Receive Address
 
-  sprintf(buf_tx, "%s", outgoing);
-  sprintf(buf_rx, "%s", incoming);
+  //sprintf(buf_tx, "%s", outgoing);
+  //sprintf(buf_rx, "%s", incoming);
   sprintf(buf_version, "%s", version);
   sprintf(buf_sync, "%s", numb);    
   sprintf(buf_localAddress, "%x", localAddress);         // byte
   sprintf(buf_mode, "%s", mode_s);                       // string
-  sprintf(buf_rxAdr, "%s", string_destinationAddress);   // x = byte
-  sprintf(buf_txAdr, "%s", tx_adr);
+  //sprintf(buf_rxAdr, "%s", string_destinationAddress);   // x = byte
+  //sprintf(buf_txAdr, "%s", tx_adr);
   sprintf(buf_lost, "%s", lost);
   sprintf(buf_rssi, "%s", reg_rssi);          //Register value string rssi convert into buffer char rssi
   //sprintf(buf_snr, "%s", reg_snr);            //Register value string snr convert into buffer char snr
@@ -449,14 +449,14 @@ if ((millis() - lastGetBattery > 10000) || (initBattery == LOW)) {
   //u8g2.drawStr(87,25,"V");
 
   //TxD and RxD Indicator
-  u8g2.setFont(u8g2_font_6x10_tf);
-  u8g2.setDrawColor(1);
-  u8g2.drawStr(0,26,"TxD:");
-  u8g2.drawStr(30,26,buf_tx);
-  u8g2.drawStr(115,26,buf_rxAdr);
-  u8g2.drawStr(0,36,"RxD:");
-  u8g2.drawStr(30,36,buf_rx);
-  u8g2.drawStr(115,36,buf_txAdr);
+  //u8g2.setFont(u8g2_font_6x10_tf);
+  //u8g2.setDrawColor(1);
+  //u8g2.drawStr(0,26,"TxD:");
+  //u8g2.drawStr(30,26,buf_tx);
+  //u8g2.drawStr(115,26,buf_rxAdr);
+  //u8g2.drawStr(0,36,"RxD:");
+  //u8g2.drawStr(30,36,buf_rx);
+  //u8g2.drawStr(115,36,buf_txAdr);
 
   //Address Indicator
   u8g2.setFont(u8g2_font_6x13_tf);
@@ -543,23 +543,6 @@ if ((millis() - lastGetBattery > 10000) || (initBattery == LOW)) {
   }
 
   u8g2.sendBuffer();
-
-  //Serial.println("");
-  //Serial.print("Mode: "); Serial.println(mode);
-  //Serial.print("Voltage: "); Serial.print(bV); Serial.println(" V");
-  //Serial.print("Voltage Level: "); Serial.print(bL); Serial.println(" %");
-  //Serial.print("TxD Adr: "); Serial.println(string_destinationAddress);
-  //Serial.print("LORA TxD: "); Serial.println(outgoing);
-  //Serial.print("RxD Adr: "); Serial.println(tx_adr);
-  //Serial.print("LORA RxD: "); Serial.println(incoming);
-  //Serial.print("Rssi: "); Serial.println(buf_rssi_int);
-  //Serial.print("LastDiscoverTime: "); Serial.println(lastDiscoverTime);
-  //Serial.print("Connected: "); Serial.println(connected);
-  //Serial.print("Connected Init: "); Serial.println(connectedInit);
-  //Serial.print("Connected State: "); Serial.println(connectedState);
-  //Serial.print("CPU Frequency: "); Serial.print(cpu_frequency); Serial.println(" MHz");
-  //Serial.print("XTAL Frequency: "); Serial.print(xtal_frequency); Serial.println(" MHz");
-  //Serial.print("APB Frequency: "); Serial.print(apb_frequency); Serial.println(" Hz");
 
   lastDisplayPrint = millis();
 }
@@ -1061,25 +1044,31 @@ void loop() {
     mode_s = "req";
     emptyDisplay();
 
-    if (esm == 0x01) {
-      Serial.println("SLEEP!");
-      u8g2.setContrast(0);
-      u8g2.sendBuffer();
-      esp_sleep_enable_timer_wakeup(timeToWakeUp * 1000000);
-      esp_light_sleep_start();
-    }
-
+    // Methode for Reset Lora Values
     if (loraTxPower != txpower) {
       loraTxPower = txpower;
       eeprom.begin("configuration", false);                //false mean use read/write mode
       eeprom.putInt("txpower", loraTxPower);     
       eeprom.end();
-      //Serial.print("loraTxPower: "); Serial.println(loraTxPower);
+      Serial.print("loraTxPower: "); Serial.println(loraTxPower);
+      u8g2.clearBuffer();
+      u8g2.setFont(u8g2_font_6x13_tf);
+      u8g2.setContrast(defaultBrightnessDisplay);   
+      u8g2.drawStr(5,30,"RESTART TALLY!");
+      u8g2.sendBuffer();
       delay(2000);
       ESP.restart();
+
+      //Methode for Sleepp
+      if (esm == 0x01) {
+        Serial.println("SLEEP!");
+        u8g2.setContrast(0);
+        u8g2.sendBuffer();
+        esp_sleep_enable_timer_wakeup(timeToWakeUp * 1000000);
+        esp_light_sleep_start();
+      }
     }
   }
-
 }
 
 //////////////////////////////////////////////////////////////////////
