@@ -29,17 +29,15 @@ String mode = "discover";
 String mode_s = "dis";
 String name = "REDTALLY Receiver";      // Device Name
 String version = "R0.01";                // Frimeware Version
-String lost = "x";
 String numb = "aa";
-String rx_adr, tx_adr, incoming, outgoing, rssi, snr;
-String reg_incoming, reg_tx_adr, reg_rssi, reg_snr;
+String rx_adr, tx_adr, incoming, outgoing, rssi;
+String reg_incoming, reg_tx_adr, reg_rssi;
 
 String oledInit;
 String loraInit;
 
 char buf_tx[12];
 char buf_rx[12];
-char buf_sync[3];
 char buf_version[5];
 char buf_localAddress[5];
 char buf_mode[4];
@@ -51,16 +49,14 @@ char buf_oledInit[12];
 char buf_stripInit[12];
 char buf_loraInit[12];
 char buf_outputInit[12];
-char buf_lost[2];
 char buf_rssi[4];
-//char buf_snr[3];
 
 ///////////////////////////////////////////////
 /////////// Setup Receiver Values /////////////
 ///////////////////////////////////////////////
 
-byte localAddress = 0xcc;                 // Address of this device   
-String string_localAddress = "cc";                                    
+byte localAddress = 0xbb;                 // Address of this device   
+String string_localAddress = "bb";                                    
 byte destination = 0xaa;                  // Destination to send to              
 String string_destinationAddress = "aa";          
 
@@ -72,7 +68,6 @@ byte msgKey1 = 0x2a;                      // Key of outgoing messages
 byte msgKey2 = 0x56;
 byte msgCount = 0;                        // Count of outgoing messages
 byte byte_rssi;
-//byte byte_snr;
 byte byte_bL;
 byte esm;
 byte txpower;
@@ -95,7 +90,6 @@ int defaultBrightnessDisplay = 255;   // value from 1 to 255
 int defaultBrightnessLed = 255;       // value from 1 to 255
 int waitOffer = 0;                                   
 int buf_rssi_int = 0;
-//int buf_snr_int = 0;
 int bL = 0;
 int posXssi = 0;
 int posYssi = 0;
@@ -105,6 +99,7 @@ int posXnumb = 0;
 int posYnumb = 0;
 int posXlost = 0;
 int posYlost = 0;
+int loraTxPowerNew = 0;
 
 ///////////////////////////////////////////////
 //////////// Setup LORA Values ////////////////
@@ -135,7 +130,6 @@ bool initBattery = LOW;
 bool batteryAttention = LOW;
 bool batteryAttentionState = LOW;
 bool expired = LOW;
-bool emptyAfterOffer = LOW;
 
 #define RELAI_PIN           14
 #define LED_PIN             12
@@ -309,7 +303,6 @@ void sendMessage(String message) {
   LoRa.write(msgKey1);                  // add message KEY
   LoRa.write(msgKey2);                  // add message KEY
   LoRa.write(byte_rssi);
-  //LoRa.write(byte_snr);
   LoRa.write(byte_bL);
   LoRa.write(msgCount);                 // add message ID
   LoRa.write(message.length());         // add payload length
@@ -322,7 +315,7 @@ void sendMessage(String message) {
 //////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
-void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr_esm, byte *ptr_txpower, String *ptr_incoming, String *ptr_rssi, String *ptr_snr) {
+void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr_esm, byte *ptr_txpower, String *ptr_incoming, String *ptr_rssi) {
   if (packetSize == 0) return;          // if there's no packet, return
 
   //Clear the variables
@@ -330,7 +323,6 @@ void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr
   *ptr_tx_adr = "";
   *ptr_incoming = "";
   *ptr_rssi = "";
-  *ptr_snr = "";
 
   string_destinationAddress = "";
   rx_adr = "";
@@ -338,7 +330,6 @@ void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr
   tx_adr = "";
   incoming = "";
   rssi = "";
-  snr = "";
 
   // read packet header bytes:
   int recipient = LoRa.read();          // recipient address
@@ -356,27 +347,38 @@ void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr
 
   // if the recipient isn't this device or broadcast,
   if (recipient != localAddress && recipient != 0xff) {
-    Serial.println("This Message is not for me.");
+    Serial.println("Message not for me.");
+    u8g2.setDrawColor(1);
+    u8g2.setFont(u8g2_font_6x10_tf);
+    u8g2.drawStr(0, 30, "INFO: NOT FOR ME");
+    u8g2.sendBuffer();
     return;                             // skip rest of function
   }
 
   if ((incomingMsgKey1 != msgKey1 && incomingMsgKey2 != msgKey2) && (recipient == localAddress || recipient == 0xff)) {
-    Serial.println("Error: Message key is false.");
+    Serial.println("Error: Message key false.");
+    u8g2.setDrawColor(1);
+    u8g2.setFont(u8g2_font_6x10_tf);
+    u8g2.drawStr(0, 30, "ERROR: MSG KEY");
+    u8g2.sendBuffer();
     return;                             // skip rest of function
   }
 
   if ((incomingLength != incoming.length()) && (recipient == localAddress || recipient == 0xff)) {   // check length for error
-    Serial.println("Error: Message length does not match length.");
+    Serial.println("Error: Message length false.");
+    u8g2.setDrawColor(1);
+    u8g2.setFont(u8g2_font_6x10_tf);
+    u8g2.drawStr(0, 30, "ERROR: MSG LENGTH");
+    u8g2.sendBuffer();
     return;                             // skip rest of function
   }
 
   *ptr_rx_adr = String(recipient, HEX);
   *ptr_tx_adr = String(sender, HEX);
   *ptr_esm = incomingEsm;
-  *ptr_txpower = incomingTxPower;
+  *ptr_txpower = (incomingTxPower);
   *ptr_incoming = incoming;
   *ptr_rssi = String(LoRa.packetRssi());
-  *ptr_snr = String(LoRa.packetSnr());
 
   return;
 
@@ -386,7 +388,7 @@ void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr
 //////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
-void emptyDisplay() {
+void clearValues() {
 
   string_destinationAddress = "";
 
@@ -397,7 +399,6 @@ void emptyDisplay() {
   incoming = "";
 
   rssi = "";
-  snr = "";
 
 }
 
@@ -407,33 +408,19 @@ void emptyDisplay() {
 
 void printDisplay() {   // tx Transmit Message,  rx Receive Message,   txAdr Receive Address
 
-  //sprintf(buf_tx, "%s", outgoing);
-  //sprintf(buf_rx, "%s", incoming);
-  sprintf(buf_version, "%s", version);
-  sprintf(buf_sync, "%s", numb);    
   sprintf(buf_localAddress, "%x", localAddress);         // byte
   sprintf(buf_mode, "%s", mode_s);                       // string
-  //sprintf(buf_rxAdr, "%s", string_destinationAddress);   // x = byte
-  //sprintf(buf_txAdr, "%s", tx_adr);
-  sprintf(buf_lost, "%s", lost);
+  sprintf(buf_version, "%s", version);
   sprintf(buf_rssi, "%s", reg_rssi);          //Register value string rssi convert into buffer char rssi
-  //sprintf(buf_snr, "%s", reg_snr);            //Register value string snr convert into buffer char snr
-
   buf_rssi_int = atoi(buf_rssi);              //Convert char rssi in int rssi
-  //buf_snr_int = atoi(buf_snr);                //Convert char snr in int snr
-  
-  byte_rssi = buf_rssi_int;                   //Transmit Snr and Rssi back to transmitter
-  //byte_snr = buf_snr_int;
-
+  byte_rssi = buf_rssi_int;                   //Transmit Rssi back to transmitter
 
 if ((millis() - lastGetBattery > 10000) || (initBattery == LOW)) {
     bV = BL.getBatteryVolts();
     bL = BL.getBatteryChargeLevel();
     snprintf(buf_bV, 5, "%f", bV);
     snprintf(buf_bL, 4, "%d", bL);
-
     byte_bL = bL;
-
     initBattery = HIGH;
     lastGetBattery = millis();
   }
@@ -447,16 +434,6 @@ if ((millis() - lastGetBattery > 10000) || (initBattery == LOW)) {
   u8g2.drawStr(87,12,"%");
   //u8g2.drawStr(67,25,buf_bV);       // write something to the internal memory
   //u8g2.drawStr(87,25,"V");
-
-  //TxD and RxD Indicator
-  //u8g2.setFont(u8g2_font_6x10_tf);
-  //u8g2.setDrawColor(1);
-  //u8g2.drawStr(0,26,"TxD:");
-  //u8g2.drawStr(30,26,buf_tx);
-  //u8g2.drawStr(115,26,buf_rxAdr);
-  //u8g2.drawStr(0,36,"RxD:");
-  //u8g2.drawStr(30,36,buf_rx);
-  //u8g2.drawStr(115,36,buf_txAdr);
 
   //Address Indicator
   u8g2.setFont(u8g2_font_6x13_tf);
@@ -472,10 +449,9 @@ if ((millis() - lastGetBattery > 10000) || (initBattery == LOW)) {
   u8g2.setDrawColor(1);
   u8g2.drawStr(29,12,buf_mode);
 
+  //Battery Indicator
   u8g2.setFont(u8g2_font_6x13_tf);
   u8g2.setDrawColor(0);
-
-  //Battery Indicator
   if ((bL >= 0) && (bL <= 10)) {
     batteryAttention = HIGH;
   }
@@ -529,9 +505,9 @@ if ((millis() - lastGetBattery > 10000) || (initBattery == LOW)) {
     u8g2.setDrawColor(1);
     u8g2.setFont(u8g2_font_6x10_tf);
     u8g2.drawStr(posXrssi, posYrssi, buf_rssi);
-    u8g2.drawStr(posXnumb, posYnumb, buf_sync);
+    u8g2.drawStr(posXnumb, posYnumb, "aa");
     u8g2.setFont(u8g2_font_10x20_tf);
-    u8g2.drawStr(posXlost, posYlost, buf_lost);
+    u8g2.drawStr(posXlost, posYlost, "x");
   }
 
   //Signal High Indicator
@@ -539,7 +515,7 @@ if ((millis() - lastGetBattery > 10000) || (initBattery == LOW)) {
     u8g2.setDrawColor(1);
     u8g2.setFont(u8g2_font_6x10_tf);
     u8g2.drawStr(posXrssi, posYrssi, buf_rssi);
-    u8g2.drawStr(posXnumb, posYnumb, buf_sync);
+    u8g2.drawStr(posXnumb, posYnumb, "aa");
   }
 
   u8g2.sendBuffer();
@@ -747,8 +723,6 @@ void setup() {
   delay(2500);
 
   intTallys();
-
-  emptyDisplay();
   printDisplay();
 
 }
@@ -761,7 +735,7 @@ void loop() {
 
   // Discover Mode
   while (mode == "discover") {
-    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &esm, &txpower, &incoming, &rssi, &snr);    // Parse Packets and Read it
+    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &esm, &txpower, &incoming, &rssi);    // Parse Packets and Read it
 
     tallyBlinkSlow(yellow);
 
@@ -774,9 +748,8 @@ void loop() {
       reg_incoming = incoming;
       reg_tx_adr = tx_adr;
       reg_rssi = rssi;
-      reg_snr = snr;
       printDisplay();
-      emptyDisplay();
+      clearValues();
       break;
     }
     
@@ -788,17 +761,16 @@ void loop() {
       reg_incoming = incoming;
       reg_tx_adr = tx_adr;
       reg_rssi = rssi;
-      reg_snr = snr;
       expiredControlTime = expiredControlTimeSync;  // After the first con Message, the time for offline status is reduced 
       lastControlTime = millis();
       printDisplay();
-      emptyDisplay();
+      clearValues();
       break;
     }
 
     // Function Print Display if nothing work
-    if (millis() - lastDisplayPrint > 10000) {
-      emptyDisplay();
+    if (millis() - lastDisplayPrint > 5000) {
+      clearValues();
       printDisplay();
     }
   }
@@ -807,25 +779,26 @@ void loop() {
   if (mode == "offer") {
     tallyBlinkFast(yellow);
     if (millis() - lastOfferTime > waitOffer) {  
-      digitalWrite(LED_PIN_INTERNAL, HIGH);
+      printDisplay();
+      //digitalWrite(LED_PIN_INTERNAL, HIGH);
       destination = 0xaa;
       string_destinationAddress = "aa"; 
       outgoing = "off";                            
       sendMessage(outgoing);                                    // Send a message      
       Serial.println("LORA TxD: " + outgoing);
-      digitalWrite(LED_PIN_INTERNAL, LOW);
+      //digitalWrite(LED_PIN_INTERNAL, LOW);
       connected = HIGH;
       connectedInit = HIGH;
       mode = "request";
       mode_s = "req";
       printDisplay();
-      emptyDisplay();
+      clearValues();
     }
   }
 
   // Request Mode
   while (mode == "request") {
-    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &esm, &txpower, &incoming, &rssi, &snr);    // Parse Packets and Read it
+    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &esm, &txpower, &incoming, &rssi);    // Parse Packets and Read it
 
     if ((incoming == "req-high") && (rx_adr == "bb") && (connected == HIGH)) {
       Serial.println("LORA RxD: " + incoming);
@@ -834,8 +807,7 @@ void loop() {
       mode = "acknowledge";
       mode_s = "ack";
       lastAcknowledgeTime = millis();
-      printDisplay();
-      emptyDisplay();
+      clearValues();
       break;
     }
     if ((incoming == "req-low") && (rx_adr == "bb") && (connected == HIGH)) {
@@ -845,8 +817,7 @@ void loop() {
       mode = "acknowledge";
       mode_s = "ack";
       lastAcknowledgeTime = millis();
-      printDisplay();
-      emptyDisplay();
+      clearValues();
       break;
     }
 
@@ -857,8 +828,7 @@ void loop() {
       mode = "acknowledge";
       mode_s = "ack";
       lastAcknowledgeTime = millis();
-      printDisplay();
-      emptyDisplay();
+      clearValues();
       break;
     }
     if ((incoming == "req-low") && (rx_adr == "cc") && (connected == HIGH)) {
@@ -868,8 +838,7 @@ void loop() {
       mode = "acknowledge";
       mode_s = "ack";
       lastAcknowledgeTime = millis();
-      printDisplay();
-      emptyDisplay();
+      clearValues();
       break;
     }
 
@@ -880,8 +849,7 @@ void loop() {
       mode = "acknowledge";
       mode_s = "ack";
       lastAcknowledgeTime = millis();
-      printDisplay();
-      emptyDisplay();
+      clearValues();
       break;
     }
     if ((incoming == "req-low") && (rx_adr == "dd") && (connected == HIGH)) {
@@ -891,8 +859,7 @@ void loop() {
       mode = "acknowledge";
       mode_s = "ack";
       lastAcknowledgeTime = millis();
-      printDisplay();
-      emptyDisplay();
+      clearValues();
       break;
     }
 
@@ -903,8 +870,7 @@ void loop() {
       mode = "acknowledge";
       mode_s = "ack";
       lastAcknowledgeTime = millis();
-      printDisplay();
-      emptyDisplay();
+      clearValues();
       break;
     }
     if ((incoming == "req-low") && (rx_adr == "ee") && (connected == HIGH)) {
@@ -914,8 +880,7 @@ void loop() {
       mode = "acknowledge";
       mode_s = "ack";
       lastAcknowledgeTime = millis();
-      printDisplay();
-      emptyDisplay();
+      clearValues();
       break;
     }
     
@@ -927,11 +892,10 @@ void loop() {
       reg_incoming = incoming;
       reg_tx_adr = tx_adr;
       reg_rssi = rssi;  
-      reg_snr = snr;
       expiredControlTime = expiredControlTimeSync;  // After the first con Message, the time for offline status is reduced
       lastControlTime = millis();
       printDisplay();
-      emptyDisplay();
+      clearValues();
       break;
     }
 
@@ -948,15 +912,8 @@ void loop() {
       lastExpiredControlTime = millis();
       expired = LOW;
       printDisplay();
-      emptyDisplay();
+      clearValues();
       break;
-    }
-
-    // Clear Display after Offer Mode
-    if (emptyAfterOffer == LOW) {
-      emptyDisplay();
-      printDisplay();
-      emptyAfterOffer = HIGH;
     }
 
     // Only one time Access after Init
@@ -993,8 +950,8 @@ void loop() {
     }
 
     // Function Print Display if nothing work
-    if ((millis() - lastDisplayPrint > 10000)) {
-      emptyDisplay();
+    if ((millis() - lastDisplayPrint > 5000)) {
+      clearValues();
       printDisplay();
     }
 
@@ -1008,29 +965,29 @@ void loop() {
 
   // Acknowledge Mode
   if ((mode == "acknowledge") && (millis() - lastAcknowledgeTime > random(150) + 150)) {
-    digitalWrite(LED_PIN_INTERNAL, HIGH);
+    printDisplay();
+    //digitalWrite(LED_PIN_INTERNAL, HIGH);
     destination = 0xaa;
     string_destinationAddress = "aa"; 
     outgoing = "ack";              
     sendMessage(outgoing);                                    // Send a message      
-    printDisplay();
     Serial.println("LORA TxD: " + outgoing);
-    digitalWrite(LED_PIN_INTERNAL, LOW);
+    //digitalWrite(LED_PIN_INTERNAL, LOW);
     mode = "request";
     mode_s = "req";
-    emptyDisplay();
+    clearValues();
   }
 
   // Control Mode
   if ((mode == "control") && (millis() - lastControlTime > random(150) + 150)) {
-    digitalWrite(LED_PIN_INTERNAL, HIGH);
+    printDisplay();
+    //digitalWrite(LED_PIN_INTERNAL, HIGH);
     destination = 0xaa;
     string_destinationAddress = "aa"; 
     outgoing = "con";
     sendMessage(outgoing);                                    // Send a message     
-    printDisplay();
     Serial.println("LORA TxD: " + outgoing);
-    digitalWrite(LED_PIN_INTERNAL, LOW);
+    //digitalWrite(LED_PIN_INTERNAL, LOW);
     lastExpiredControlTime = millis();
     expired = LOW;
 
@@ -1042,7 +999,23 @@ void loop() {
     connected = HIGH;
     mode = "request";
     mode_s = "req";
-    emptyDisplay();
+    clearValues();
+
+    /*
+    if (txpower == 0x0A){loraTxPowerNew = 10;}
+    if (txpower == 0x0B){loraTxPowerNew = 11;}
+    if (txpower == 0x0C){loraTxPowerNew = 12;}
+    if (txpower == 0x0D){loraTxPowerNew = 13;}
+    if (txpower == 0x0F){loraTxPowerNew = 15;}
+    if (txpower == 0x10){loraTxPowerNew = 16;}
+    if (txpower == 0x11){loraTxPowerNew = 17;}
+    if (txpower == 0x12){loraTxPowerNew = 18;}
+    if (txpower == 0x13){loraTxPowerNew = 19;}
+    if (txpower == 0x14){loraTxPowerNew = 20;}
+
+    Serial.print("loraTxPowerNew "); Serial.println(loraTxPowerNew);
+    Serial.print("loraTxPower "); Serial.println(loraTxPower);
+    */
 
     // Methode for Reset Lora Values
     if (loraTxPower != txpower) {
@@ -1050,18 +1023,22 @@ void loop() {
       eeprom.begin("configuration", false);                //false mean use read/write mode
       eeprom.putInt("txpower", loraTxPower);     
       eeprom.end();
-      Serial.print("loraTxPower: "); Serial.println(loraTxPower);
-      u8g2.clearBuffer();
-      u8g2.setFont(u8g2_font_6x13_tf);
-      u8g2.setContrast(defaultBrightnessDisplay);   
-      u8g2.drawStr(5,30,"RESTART TALLY!");
+      Serial.println("Reset: Change values.");
+      u8g2.setDrawColor(1);
+      u8g2.setFont(u8g2_font_6x10_tf);
+      u8g2.drawStr(0, 30, "RESET!");
       u8g2.sendBuffer();
-      delay(2000);
+      delay(5000);
       ESP.restart();
 
       //Methode for Sleepp
       if (esm == 0x01) {
-        Serial.println("SLEEP!");
+        Serial.println("Going to sleep.");
+        u8g2.setDrawColor(1);
+        u8g2.setFont(u8g2_font_6x10_tf);
+        u8g2.drawStr(0, 30, "SLEEP!");
+        u8g2.sendBuffer();
+        delay(5000);
         u8g2.setContrast(0);
         u8g2.sendBuffer();
         esp_sleep_enable_timer_wakeup(timeToWakeUp * 1000000);
