@@ -69,6 +69,7 @@ byte msgKey2 = 0x56;
 byte msgCount = 0;                        // Count of outgoing messages
 byte byte_rssi;
 byte byte_bL;
+byte res;
 byte esm;
 byte txpower;
 
@@ -315,7 +316,7 @@ void sendMessage(String message) {
 //////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
 
-void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr_esm, byte *ptr_txpower, String *ptr_incoming, String *ptr_rssi) {
+void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr_res, byte *ptr_esm, byte *ptr_txpower, String *ptr_incoming, String *ptr_rssi) {
   if (packetSize == 0) return;          // if there's no packet, return
 
   //Clear the variables
@@ -336,6 +337,7 @@ void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr
   byte sender = LoRa.read();            // sender address
   byte incomingMsgKey1 = LoRa.read();   // incoming msg KEY1
   byte incomingMsgKey2 = LoRa.read();   // incoming msg KEY2
+  byte incomingRes = LoRa.read();       // incoming energie save mode
   byte incomingEsm = LoRa.read();       // incoming energie save mode
   byte incomingTxPower = LoRa.read();   // incoming txpower
   byte incomingMsgId = LoRa.read();     // incoming msg ID
@@ -375,6 +377,7 @@ void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr
 
   *ptr_rx_adr = String(recipient, HEX);
   *ptr_tx_adr = String(sender, HEX);
+  *ptr_res = incomingRes;
   *ptr_esm = incomingEsm;
   *ptr_txpower = (incomingTxPower);
   *ptr_incoming = incoming;
@@ -735,7 +738,7 @@ void loop() {
 
   // Discover Mode
   while (mode == "discover") {
-    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &esm, &txpower, &incoming, &rssi);    // Parse Packets and Read it
+    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &res, &esm, &txpower, &incoming, &rssi);    // Parse Packets and Read it
 
     tallyBlinkSlow(yellow);
 
@@ -798,7 +801,7 @@ void loop() {
 
   // Request Mode
   while (mode == "request") {
-    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &esm, &txpower, &incoming, &rssi);    // Parse Packets and Read it
+    onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &res, &esm, &txpower, &incoming, &rssi);    // Parse Packets and Read it
 
     if ((incoming == "req-high") && (rx_adr == "bb") && (connected == HIGH)) {
       Serial.println("LORA RxD: " + incoming);
@@ -1000,13 +1003,23 @@ void loop() {
     mode = "request";
     mode_s = "req";
     clearValues();
-
-    /*
-    if (txpower == 0x0A){loraTxPowerNew = 10;}
-    if (txpower == 0x0B){loraTxPowerNew = 11;}
-    if (txpower == 0x0C){loraTxPowerNew = 12;}
-    if (txpower == 0x0D){loraTxPowerNew = 13;}
-    if (txpower == 0x0F){loraTxPowerNew = 15;}
+    
+    if (txpower == 0x00){loraTxPowerNew = 0;}
+    if (txpower == 0x01){loraTxPowerNew = 1;}
+    if (txpower == 0x02){loraTxPowerNew = 2;}
+    if (txpower == 0x03){loraTxPowerNew = 3;}
+    if (txpower == 0x04){loraTxPowerNew = 4;}
+    if (txpower == 0x05){loraTxPowerNew = 5;}
+    if (txpower == 0x06){loraTxPowerNew = 6;}
+    if (txpower == 0x07){loraTxPowerNew = 7;}
+    if (txpower == 0x08){loraTxPowerNew = 8;}
+    if (txpower == 0x09){loraTxPowerNew = 9;}
+    if (txpower == 0x0a){loraTxPowerNew = 10;}
+    if (txpower == 0x0b){loraTxPowerNew = 11;}
+    if (txpower == 0x0c){loraTxPowerNew = 12;}
+    if (txpower == 0x0d){loraTxPowerNew = 13;}
+    if (txpower == 0x0e){loraTxPowerNew = 14;}
+    if (txpower == 0x0f){loraTxPowerNew = 15;}
     if (txpower == 0x10){loraTxPowerNew = 16;}
     if (txpower == 0x11){loraTxPowerNew = 17;}
     if (txpower == 0x12){loraTxPowerNew = 18;}
@@ -1015,11 +1028,10 @@ void loop() {
 
     Serial.print("loraTxPowerNew "); Serial.println(loraTxPowerNew);
     Serial.print("loraTxPower "); Serial.println(loraTxPower);
-    */
-
+    
     // Methode for Reset Lora Values
-    if (loraTxPower != txpower) {
-      loraTxPower = txpower;
+    if (loraTxPower != loraTxPowerNew) {
+      loraTxPower = loraTxPowerNew;
       eeprom.begin("configuration", false);                //false mean use read/write mode
       eeprom.putInt("txpower", loraTxPower);     
       eeprom.end();
@@ -1027,6 +1039,16 @@ void loop() {
       u8g2.setDrawColor(1);
       u8g2.setFont(u8g2_font_6x10_tf);
       u8g2.drawStr(0, 30, "RESET!");
+      u8g2.sendBuffer();
+      delay(5000);
+      ESP.restart();
+
+    // Methode for Restart Lora Values
+    if (res == 0x01) {
+      Serial.println("Restart: In progress.");
+      u8g2.setDrawColor(1);
+      u8g2.setFont(u8g2_font_6x10_tf);
+      u8g2.drawStr(0, 30, "RESTART!");
       u8g2.sendBuffer();
       delay(5000);
       ESP.restart();
