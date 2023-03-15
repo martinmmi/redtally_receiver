@@ -55,8 +55,8 @@ char buf_rssi[4];
 /////////// Setup Receiver Values /////////////
 ///////////////////////////////////////////////
 
-byte localAddress = 0xbb;                 // Address of this device   
-String string_localAddress = "bb";                                    
+byte localAddress = 0xcc;                 // Address of this device   
+String string_localAddress = "cc";                                    
 byte destination = 0xaa;                  // Destination to send to              
 String string_destinationAddress = "aa";          
 
@@ -337,7 +337,7 @@ void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr
   byte sender = LoRa.read();            // sender address
   byte incomingMsgKey1 = LoRa.read();   // incoming msg KEY1
   byte incomingMsgKey2 = LoRa.read();   // incoming msg KEY2
-  byte incomingRes = LoRa.read();       // incoming energie save mode
+  byte incomingRes = LoRa.read();       // incoming reset
   byte incomingEsm = LoRa.read();       // incoming energie save mode
   byte incomingTxPower = LoRa.read();   // incoming txpower
   byte incomingMsgId = LoRa.read();     // incoming msg ID
@@ -655,7 +655,7 @@ void setup() {
 
   eeprom.begin("configuration", false); 
   loraTxPower = eeprom.getInt("txpower", false); 
-  //Serial.print("loraTxPower: "); Serial.println(loraTxPower); 
+  Serial.print("loraTxPower: "); Serial.println(loraTxPower); 
   eeprom.end();
 
 //////////////////////////////////////////////////////////////////////
@@ -1042,6 +1042,7 @@ void loop() {
       u8g2.sendBuffer();
       delay(5000);
       ESP.restart();
+    }
 
     // Methode for Restart Lora Values
     if (res == 0x01) {
@@ -1052,20 +1053,20 @@ void loop() {
       u8g2.sendBuffer();
       delay(5000);
       ESP.restart();
+    }
 
-      //Methode for Sleepp
-      if (esm == 0x01) {
-        Serial.println("Going to sleep.");
-        u8g2.setDrawColor(1);
-        u8g2.setFont(u8g2_font_6x10_tf);
-        u8g2.drawStr(0, 30, "SLEEP!");
-        u8g2.sendBuffer();
-        delay(5000);
-        u8g2.setContrast(0);
-        u8g2.sendBuffer();
-        esp_sleep_enable_timer_wakeup(timeToWakeUp * 1000000);
-        esp_light_sleep_start();
-      }
+    //Methode for Sleepp
+    if (esm == 0x01) {
+      Serial.println("Going to sleep.");
+      u8g2.setDrawColor(1);
+      u8g2.setFont(u8g2_font_6x10_tf);
+      u8g2.drawStr(0, 30, "SLEEP!");
+      u8g2.sendBuffer();
+      delay(5000);
+      u8g2.setContrast(0);
+      u8g2.sendBuffer();
+      esp_sleep_enable_timer_wakeup(timeToWakeUp * 1000000);
+      esp_light_sleep_start();
     }
   }
 }
