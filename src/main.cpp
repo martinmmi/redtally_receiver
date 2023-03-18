@@ -55,8 +55,8 @@ char buf_rssi[4];
 /////////// Setup Receiver Values /////////////
 ///////////////////////////////////////////////
 
-byte localAddress = 0xdd;                 // Address of this device   
-String string_localAddress = "dd";                                    
+byte localAddress = 0xee;                 // Address of this device   
+String string_localAddress = "ee";                                    
 byte destination = 0xaa;                  // Destination to send to              
 String string_destinationAddress = "aa";          
 
