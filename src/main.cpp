@@ -55,8 +55,8 @@ char buf_rssi[4];
 /////////// Setup Receiver Values /////////////
 ///////////////////////////////////////////////
 
-byte localAddress = 0xcc;                 // Address of this device   
-String string_localAddress = "cc";                                    
+byte localAddress = 0xdd;                 // Address of this device   
+String string_localAddress = "dd";                                    
 byte destination = 0xaa;                  // Destination to send to              
 String string_destinationAddress = "aa";          
 
@@ -1025,9 +1025,6 @@ void loop() {
     if (txpower == 0x12){loraTxPowerNew = 18;}
     if (txpower == 0x13){loraTxPowerNew = 19;}
     if (txpower == 0x14){loraTxPowerNew = 20;}
-
-    Serial.print("loraTxPowerNew "); Serial.println(loraTxPowerNew);
-    Serial.print("loraTxPower "); Serial.println(loraTxPower);
     
     // Methode for Reset Lora Values
     if (loraTxPower != loraTxPowerNew) {
