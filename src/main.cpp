@@ -538,6 +538,7 @@ uint32_t chooseColor(byte color) {
   if (color == 0x01) {return red;}
   if (color == 0x02) {return green;}
   if (color == 0x03) {return amber;}
+  return nocolor;
 }
 
 void tallyBlinkSlow(uint32_t color) {
