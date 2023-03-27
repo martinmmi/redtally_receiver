@@ -672,7 +672,7 @@ void setup() {
 //////////////////////////////////////////////////////////////////////
 
   eeprom.begin("configuration", false); 
-  loraTxPower = eeprom.getInt("txpower", false); 
+  loraTxPower = eeprom.getInt("txpower", loraTxPower); 
   eeprom.end();
 
 //////////////////////////////////////////////////////////////////////
