@@ -50,7 +50,7 @@ char buf_rssi[4];
 /////////// Setup Receiver Values /////////////
 ///////////////////////////////////////////////
 
-byte localAddress = 0xcc;                 // Address of this device                   
+byte localAddress = 0xdd;                 // Address of this device                   
 byte destination = 0xaa;                  // Destination to send to                      
 
 ///////////////////////////////////////////////
