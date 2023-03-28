@@ -50,7 +50,7 @@ char buf_rssi[4];
 /////////// Setup Receiver Values /////////////
 ///////////////////////////////////////////////
 
-byte localAddress = 0xee;                 // Address of this device                   
+byte localAddress = 0xcc;                 // Address of this device                   
 byte destination = 0xaa;                  // Destination to send to                      
 
 ///////////////////////////////////////////////
@@ -663,16 +663,24 @@ void setup() {
   //1=POWERON_RESET   3=SW_RESET  4=OWDT_RESET    5=DEEPSLEEP_RESET   6=SDIO_RESET    7=TG0WDT_SYS_RESET  8=TG1WDT_SYS_RESET  9=RTCWDT_SYS_RESET  
   //10=INTRUSION_RESET  11=TGWDT_CPU_RESET  12=SW_CPU_RESET 13=RTCWDT_CPU_RESET   14=EXT_CPU_RESET    15=RTCWDT_BROWN_OUT_RESET   16=RTCWDT_RTC_RESET     default=NO_MEAN
 
-    if (rtc_get_reset_reason(0) == 1 || rtc_get_reset_reason(0) == 14 || rtc_get_reset_reason(1) == 1 || rtc_get_reset_reason(1) == 14) {
-            eeprom.begin("configuration", false); 
-            eeprom.clear();           //Clear the eeprom when the reset button is pushed
-            eeprom.end();
-    }
+  Serial.print("CPU0 reset reason: ");
+  Serial.println(rtc_get_reset_reason(0));
+
+  Serial.print("CPU1 reset reason: ");
+  Serial.println(rtc_get_reset_reason(1));
+
+  if (rtc_get_reset_reason(0) == 1 || rtc_get_reset_reason(0) == 14 || rtc_get_reset_reason(1) == 1 || rtc_get_reset_reason(1) == 14) {
+          eeprom.begin("configuration", false); 
+          eeprom.clear();           //Clear the eeprom when the reset button is pushed
+          eeprom.end();
+  }
 
 //////////////////////////////////////////////////////////////////////
 
   eeprom.begin("configuration", false); 
   loraTxPower = eeprom.getInt("txpower", loraTxPower); 
+  Serial.print("loraTxPower: ");
+  Serial.println(loraTxPower);
   eeprom.end();
 
 //////////////////////////////////////////////////////////////////////
@@ -1040,6 +1048,8 @@ void loop() {
       eeprom.begin("configuration", false);                //false mean use read/write mode
       eeprom.putInt("txpower", loraTxPower);     
       eeprom.end();
+      Serial.print("NewloraTxPower: ");
+      Serial.println(loraTxPower);
       Serial.println("Reset: Change values.");
       u8g2.setDrawColor(1);
       u8g2.setFont(u8g2_font_6x10_tf);
