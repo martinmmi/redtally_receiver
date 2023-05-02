@@ -50,7 +50,7 @@ char buf_rssi[4];
 /////////// Setup Receiver Values /////////////
 ///////////////////////////////////////////////
 
-byte localAddress = 0xbb;                 // Address of this device                   
+byte localAddress = 0xcc;                 // Address of this device                   
 byte destination = 0xaa;                  // Destination to send to                      
 
 ///////////////////////////////////////////////
@@ -308,6 +308,19 @@ void sendMessage() {
   LoRa.write(msgCount);                 // add message ID
   LoRa.endPacket();                     // finish packet and send it
   msgCount++;                           // increment message ID
+
+  Serial.print("LORA TxD:");
+  Serial.print(" DST: "); Serial.print(destination);
+  Serial.print(" SOURCE: "); Serial.print(localAddress);
+  Serial.print(" MSGKEY1: "); Serial.print(msgKey1);
+  Serial.print(" MSGKEY2: "); Serial.print(msgKey2);
+  Serial.print(" RRSSI: "); Serial.print(receiverRSSI);
+  Serial.print(" RBL: "); Serial.print(receiverBL);
+  Serial.print(" RMODE: "); Serial.print(receiverMode);
+  Serial.print(" RSTATE: "); Serial.print(receiverState);
+  Serial.print(" RCOLORE: "); Serial.print(receiverColor);
+  Serial.print(" MSGCOUNT: "); Serial.println(msgCount);
+
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -374,8 +387,9 @@ void onReceive(int packetSize, String *ptr_rx_adr, String *ptr_tx_adr, byte *ptr
   *ptr_color = (incomingColor);
   *ptr_rssi = String(LoRa.packetRssi());
 
-  Serial.print("RECIPIENT: "); Serial.print(recipient);
-  Serial.print(" SENDER: "); Serial.print(sender);
+  Serial.print("LORA RxD:");
+  Serial.print(" SOURCE: "); Serial.print(sender);
+  Serial.print(" RECIPIENT: "); Serial.print(recipient);
   Serial.print(" MSGKEY1: "); Serial.print(incomingMsgKey1);
   Serial.print(" MSGKEY2: "); Serial.print(incomingMsgKey2);
   Serial.print(" RESFLAG: "); Serial.print(incomingRes);
@@ -769,7 +783,6 @@ void loop() {
 
     //Routine for discover new receivers at the start
     if ((receiverMode == 0x01) && (tx_adr == "aa") && (rx_adr == "ff")) {
-      Serial.println("LORA RxD: 0x01 DISCOVER");
       lastOfferTime = millis();
       mode = "offer";
       mode_s = "off";
@@ -781,7 +794,6 @@ void loop() {
     
     //Routine for rediscover receivers, which lost signal, empty battery or switched off
     if ((receiverMode == 0x05) && (tx_adr == "aa")) {
-      Serial.println("LORA RxD: 0x05 CONTROL");
       mode = "control";
       mode_s = "con";
       reg_rssi = rssi;
@@ -808,7 +820,6 @@ void loop() {
       destination = 0xaa;
       receiverMode = 0x02;                         
       sendMessage();                                    // Send a message      
-      Serial.println("LORA TxD: 0x02 OFFER");
       //digitalWrite(LED_PIN_INTERNAL, LOW);
       connected = HIGH;
       connectedInit = HIGH;
@@ -824,7 +835,6 @@ void loop() {
     onReceive(LoRa.parsePacket(), &rx_adr, &tx_adr, &resFlag, &esmFlag, &transmissionPower, &receiverMode, &receiverState, &receiverColor, &rssi);    // Parse Packets and Read it
 
     if ((receiverMode == 0x03) && (rx_adr == "bb") && (receiverState == 0x01) && (connected == HIGH)) {
-      Serial.println("LORA RxD: 0x03 REQUEST 0x01 HIGH");
       tally(chooseColor(receiverColor));
       relai(HIGH);
       mode = "acknowledge";
@@ -834,7 +844,6 @@ void loop() {
       break;
     }
     if ((receiverMode == 0x03) && (rx_adr == "bb") && (receiverState == 0x00) && (connected == HIGH)) {
-      Serial.println("LORA RxD: 0x03 REQUEST 0x00 LOW");
       tally(chooseColor(receiverColor));
       relai(LOW);
       mode = "acknowledge";
@@ -845,7 +854,6 @@ void loop() {
     }
 
     if ((receiverMode == 0x03) && (rx_adr == "cc") && (receiverState == 0x01) && (connected == HIGH)) {
-      Serial.println("LORA RxD: 0x03 REQUEST 0x01 HIGH");
       tally(chooseColor(receiverColor));
       relai(HIGH);
       mode = "acknowledge";
@@ -855,7 +863,6 @@ void loop() {
       break;
     }
     if ((receiverMode == 0x03) && (rx_adr == "cc") && (receiverState == 0x00) && (connected == HIGH)) {
-      Serial.println("LORA RxD: 0x03 REQUEST 0x00 LOW");
       tally(chooseColor(receiverColor));
       relai(LOW);
       mode = "acknowledge";
@@ -866,7 +873,6 @@ void loop() {
     }
 
     if ((receiverMode == 0x03) && (rx_adr == "dd") && (receiverState == 0x01) && (connected == HIGH)) {
-      Serial.println("LORA RxD: 0x03 REQUEST 0x01 HIGH");
       tally(chooseColor(receiverColor));
       relai(HIGH);
       mode = "acknowledge";
@@ -876,7 +882,6 @@ void loop() {
       break;
     }
     if ((receiverMode == 0x03) && (rx_adr == "dd") && (receiverState == 0x00) && (connected == HIGH)) {
-      Serial.println("LORA RxD: 0x03 REQUEST 0x00 LOW");
       tally(chooseColor(receiverColor));
       relai(LOW);
       mode = "acknowledge";
@@ -887,7 +892,6 @@ void loop() {
     }
 
     if ((receiverMode == 0x03) && (rx_adr == "ee") && (receiverState == 0x01) && (connected == HIGH)) {
-      Serial.println("LORA RxD: 0x03 REQUEST 0x01 HIGH");
       tally(chooseColor(receiverColor));
       relai(HIGH);
       mode = "acknowledge";
@@ -897,7 +901,6 @@ void loop() {
       break;
     }
     if ((receiverMode == 0x03) && (rx_adr == "ee") && (receiverState == 0x00) && (connected == HIGH)) {
-      Serial.println("LORA RxD: 0x03 REQUEST 0x00 LOW");
       tally(chooseColor(receiverColor));
       relai(LOW);
       mode = "acknowledge";
@@ -909,7 +912,6 @@ void loop() {
     
     //Routine for Control Online Status
     if ((receiverMode == 0x05) && (tx_adr == "aa")) {
-      Serial.println("LORA RxD: 0x05 CONTROL");
       mode = "control";
       mode_s = "con";
       reg_rssi = rssi;  
@@ -922,7 +924,6 @@ void loop() {
 
     //Routine for Base Reset after 10 Minutes On-Time
     if (((receiverMode == 0x01)) && (tx_adr == "aa") && (rx_adr == "ff") && (initSuccess == HIGH) && (millis() - lastDiscoverTime > 600000)) {
-      Serial.println("LORA RxD: 0x01 DISCOVER");
       mode = "discover";
       mode_s = "dis";
       initSuccess = LOW;
@@ -991,7 +992,6 @@ void loop() {
     destination = 0xaa; 
     receiverMode = 0x04;             
     sendMessage();                                    // Send a message      
-    Serial.println("LORA TxD: 0x04 ACKNOWLEDGE");
     //digitalWrite(LED_PIN_INTERNAL, LOW);
     mode = "request";
     mode_s = "req";
@@ -1005,7 +1005,6 @@ void loop() {
     destination = 0xaa;
     receiverMode = 0x05;   
     sendMessage();                                    // Send a message     
-    Serial.println("LORA TxD: 0x05 CONTROL");
     //digitalWrite(LED_PIN_INTERNAL, LOW);
     lastExpiredControlTime = millis();
     expired = LOW;
