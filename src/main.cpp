@@ -28,7 +28,7 @@ uint32_t apb_frequency = 0;
 String mode = "discover";
 String mode_s = "dis";
 String name = "REDTALLY Receiver";      // Device Name
-String version = "R0.02";                // Frimeware Version
+String version = "R0.03";               // Frimeware Version
 String numb = "aa";
 String rx_adr, tx_adr, incoming, outgoing, rssi;
 String reg_rssi;
@@ -167,7 +167,7 @@ Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 uint32_t nocolor = strip.Color(0, 0, 0);
 uint32_t red = strip.Color(255, 0, 0);
-uint32_t green = strip.Color(0, 255, 0);
+uint32_t green = strip.Color(0, 100, 0);
 uint32_t amber = strip.Color(255, 50, 0);
 uint32_t white = strip.Color(255, 255, 255);
 
@@ -836,7 +836,9 @@ void loop() {
 
     if ((receiverMode == 0x03) && (rx_adr == "bb") && (receiverState == 0x01) && (connected == HIGH)) {
       tally(chooseColor(receiverColor));
-      relai(HIGH);
+      if (receiverColor == 0x01){relai(HIGH);}
+      if (receiverColor == 0x02){relai(LOW);}
+      if (receiverColor == 0x03){relai(LOW);}
       mode = "acknowledge";
       mode_s = "ack";
       lastAcknowledgeTime = millis();
@@ -855,7 +857,9 @@ void loop() {
 
     if ((receiverMode == 0x03) && (rx_adr == "cc") && (receiverState == 0x01) && (connected == HIGH)) {
       tally(chooseColor(receiverColor));
-      relai(HIGH);
+      if (receiverColor == 0x01){relai(HIGH);}
+      if (receiverColor == 0x02){relai(LOW);}
+      if (receiverColor == 0x03){relai(LOW);}
       mode = "acknowledge";
       mode_s = "ack";
       lastAcknowledgeTime = millis();
@@ -874,7 +878,9 @@ void loop() {
 
     if ((receiverMode == 0x03) && (rx_adr == "dd") && (receiverState == 0x01) && (connected == HIGH)) {
       tally(chooseColor(receiverColor));
-      relai(HIGH);
+      if (receiverColor == 0x01){relai(HIGH);}
+      if (receiverColor == 0x02){relai(LOW);}
+      if (receiverColor == 0x03){relai(LOW);}
       mode = "acknowledge";
       mode_s = "ack";
       lastAcknowledgeTime = millis();
@@ -893,7 +899,9 @@ void loop() {
 
     if ((receiverMode == 0x03) && (rx_adr == "ee") && (receiverState == 0x01) && (connected == HIGH)) {
       tally(chooseColor(receiverColor));
-      relai(HIGH);
+      if (receiverColor == 0x01){relai(HIGH);}
+      if (receiverColor == 0x02){relai(LOW);}
+      if (receiverColor == 0x03){relai(LOW);}
       mode = "acknowledge";
       mode_s = "ack";
       lastAcknowledgeTime = millis();
