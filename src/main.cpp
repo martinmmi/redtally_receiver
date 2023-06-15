@@ -167,7 +167,7 @@ Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 uint32_t nocolor = strip.Color(0, 0, 0);
 uint32_t red = strip.Color(255, 0, 0);
-uint32_t green = strip.Color(0, 100, 0);
+uint32_t green = strip.Color(0, 90, 0);
 uint32_t amber = strip.Color(255, 50, 0);
 uint32_t white = strip.Color(255, 255, 255);
 
