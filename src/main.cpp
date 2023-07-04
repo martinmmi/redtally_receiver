@@ -103,8 +103,8 @@ int loraTxPowerNew = 0;
 ///////////////////////////////////////////////
 
 int loraTxPower = 17;                   //2-20 default 17
-int loraSpreadingFactor = 7;            //6-12 default  7
-double loraSignalBandwidth = 125E3;     //7.8E3, 10.4E3, 15.6E3, 20.8E3, 31.25E3, 41.7E3, 62.5E3, 125E3, 250E3, and 500E3 default 125E3
+int loraSpreadingFactor = 8;            //6-12 default  7
+double loraSignalBandwidth = 250E3;     //7.8E3, 10.4E3, 15.6E3, 20.8E3, 31.25E3, 41.7E3, 62.5E3, 125E3, 250E3, and 500E3 default 125E3
 int loraCodingRate = 5;                 //5-8 default 5
 int loraPreambleLength = 8;             //6-65535 default 8
 double loraFrequenz = 868E6;            //set Frequenz 915E6 or 868E6
