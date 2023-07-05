@@ -28,7 +28,7 @@ uint32_t apb_frequency = 0;
 String mode = "discover";
 String mode_s = "dis";
 String name = "REDTALLY Receiver";      // Device Name
-String version = "R0.03";               // Frimeware Version
+String version = "R0.04";               // Frimeware Version
 String numb = "aa";
 String rx_adr, tx_adr, incoming, outgoing, rssi;
 String reg_rssi;
@@ -50,7 +50,7 @@ char buf_rssi[4];
 /////////// Setup Receiver Values /////////////
 ///////////////////////////////////////////////
 
-byte localAddress = 0xee;                 // Address of this device                   
+byte localAddress = 0xdd;                 // Address of this device                   
 byte destination = 0xaa;                  // Destination to send to                      
 
 ///////////////////////////////////////////////
@@ -103,8 +103,8 @@ int loraTxPowerNew = 0;
 ///////////////////////////////////////////////
 
 int loraTxPower = 17;                   //2-20 default 17
-int loraSpreadingFactor = 8;            //6-12 default  7
-double loraSignalBandwidth = 250E3;     //7.8E3, 10.4E3, 15.6E3, 20.8E3, 31.25E3, 41.7E3, 62.5E3, 125E3, 250E3, and 500E3 default 125E3
+int loraSpreadingFactor = 8;            //6-12 default  7     if higher = need more transmitttime, more current, more distance, only one message per secound
+double loraSignalBandwidth = 250E3;     //7.8E3, 10.4E3, 15.6E3, 20.8E3, 31.25E3, 41.7E3, 62.5E3, 125E3, 250E3, and 500E3 default 125E3   if higher = faster in the transmission
 int loraCodingRate = 5;                 //5-8 default 5
 int loraPreambleLength = 8;             //6-65535 default 8
 double loraFrequenz = 868E6;            //set Frequenz 915E6 or 868E6
